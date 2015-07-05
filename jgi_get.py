@@ -14,7 +14,7 @@ def usage_blurb():
     print '*'*80
     print
     print textwrap.dedent("""\
-        This script will retrieve files from JGI using the "curl" api. It will 
+        This script will retrieve files from JGI using the curl api. It will
         return a list of possible files for downloading.
         
         Usage:
@@ -50,12 +50,14 @@ if len(sys.argv) < 2:
 org_address = sys.argv[1]
 try:
     organism = re.search('\.jgi.+\.(?:gov|org)/(.+)/', org_address).group(1)
-except AttributeError:  # not in address form
+except AttributeError:  # not in address form, assume is just org. name
     organism = org_address
 
 # Modify these to change the login credentials
 user = 'roylabsfsu@gmail.com'
 password = 'splice!@#$sfsu'
+
+# Set curl login string using user/pw
 login = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
         ' login={}\&password={} -b cookies -c cookies >'\
         ' /dev/null'.format(user, password)
