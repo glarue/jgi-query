@@ -19,11 +19,11 @@ def usage_blurb():
         
         Usage:
         
-        jgi_get.py [<jgi_address_of_organism>, <jgi_name_of_organism>] [-xml]
+        $ jgi_get.py [<jgi_address_of_organism>, <jgi_name_of_organism>] [-xml [<your_xml>]]
         
         To get <jgi_address_of_organism>, go to: http://genome.jgi.doe.gov/
         and search for your species of interest. Click through until
-        you are at the main page. For "Nematostella vectensis", the
+        you are at the main page. For \x1B[3mNematostella vectensis\x1B[23m, the
         desired page is "http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html".
 
         To query using only the name simply requires the specific JGI
@@ -37,8 +37,13 @@ def usage_blurb():
 
         $ jgi_get.py Nemve1
 
-        If you already have the xml file for the query in the directory,
-        use the -xml flag to avoid redownloading it.""")
+        * If you already have the xml file for the query in the directory,
+        use the -xml flag to avoid redownloading it:
+
+        $ jgi_get.py -xml <your_xml_index>
+
+        If the xml filename is omitted when using the -xml flag, it is assumed
+        that the xml file is named '<org_name>_jgi_index.xml'""")
     print
     print '*'*80
 
@@ -49,8 +54,8 @@ if len(sys.argv) < 2:
 
 org_address = sys.argv[1]
 try:
-    organism = re.search('\.jgi.+\.(?:gov|org)/(.+)/', org_address).group(1)
-except AttributeError:  # not in address form, assume is just org. name
+    organism = re.search("\.jgi.+\.(?:gov|org)/(.+)/", org_address).group(1)
+except AttributeError:  # not in address form, assume string is name
     organism = org_address
 
 # Modify these to change the login credentials
@@ -62,17 +67,27 @@ login = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
         ' login={}\&password={} -b cookies -c cookies >'\
         ' /dev/null'.format(user, password)
 
-# Get xml index of files, using local file or curl
-xml_index_filename = '{}_jgi_index.xml'.format(organism)
-if "-xml" not in sys.argv:  # retrieve from Internet
+# Get xml index of files, using existing local file or curl api
+if "-xml" in sys.argv:
+    local_xml = True
+else:
+    local_xml = False
+if not local_xml:  # retrieve from Internet
+    xml_index_filename = '{}_jgi_index.xml'.format(organism)
     xml_address = 'curl'\
         ' http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism={}'\
         ' -b cookies -c cookies > {}'.format(organism, xml_index_filename)
     subprocess.call(login, shell=True)
     subprocess.call(xml_address, shell=True)
+else:
+    xml_arg = sys.argv.index("-xml") + 1
+    try:
+        xml_index_filename = sys.argv[xml_arg]
+    except IndexError:  # -xml flag used without argument
+        xml_index_filename = '{}_jgi_index.xml'.format(organism)
 
 
-# # OLD METHOD
+# # Deprecated method, kept as reference
 # def file_list(categories):
 #     descriptors = {}
 #     uid = 0
@@ -91,7 +106,7 @@ if "-xml" not in sys.argv:  # retrieve from Internet
 #                 uid += 1
 #     return descriptors
 
-# WITH RECURSION
+# NOW WITH RECURSION
 def recursive_hunt(parent, key, matches={}):
     """
     This moves through the XML tree and pulls
@@ -112,7 +127,7 @@ def recursive_hunt(parent, key, matches={}):
                     except KeyError:
                         matches[parent_name] = [grandchild.attrib]
             else:
-                parent_name = None
+                # parent_name = None
                 recursive_hunt(child, key, matches)
         except KeyError:
             return matches
@@ -165,9 +180,28 @@ def get_sizes(d, sizes_by_url={}):
                 get_sizes(v, sizes_by_url)
     return sizes_by_url
 
+def cleanExit(exit_message=None):
+    # subprocess.call('rm {} {}'.format(xml_index_filename, 'cookies'), shell=True)
+    to_remove = ["cookies"]
+    if not local_xml:  # don't delete xml file if supplied by user
+        to_remove.append(xml_index_filename)
+    for f in to_remove:
+        try:
+            os.remove(f)
+        except OSError:
+            continue
+    if exit_message:
+        print_message = "{}\n".format(exit_message)
+    else:
+        print_message = ""
+    sys.exit("{}Removing temp files and exiting".format(print_message))
+
 # Parse xml file for files to download
-xml_in = ET.parse(xml_index_filename)
-xml_root = xml_in.getroot()
+try:
+    xml_in = ET.parse(xml_index_filename)
+    xml_root = xml_in.getroot()
+except:
+    cleanExit("Cannot parse xml file. Make sure file exists and has content.")
 
 # Build local file info
 desired_categories = ['ESTs',
@@ -182,30 +216,15 @@ file_list = get_file_list(xml_root, desired_categories)
 
 # Check if file has any categories of interest
 if not any(v["results"] for v in file_list.values()):
-    print ("ERROR: no results found for '{}' in any of the following categories:\n{}"
+    print ("ERROR: no results found for '{}' in any of the following "
+           "categories:\n---\n{}\n---"
            .format(organism, "\n".join(desired_categories)))
-    print "---"
-    sys.exit("Exiting now.")
+    cleanExit()
 
 file_sizes = get_sizes(file_list, sizes_by_url={})
 
-# OLD VERSION
-# dict_to_get = {}
-# for key in sorted(files.iterkeys()):
-#     if files[key]:
-#         print '\n' + key + '\n'
-#         for k, v in files[key].iteritems():
-#             index = str(k)
-#             dict_to_get[index] = files[key][k]['url']
-#             index_print = '[{}]'.format(index)
-#             name = v['filename']
-#             size = v['size']
-#             size_print = '({})'.format(size)
-#             info = '{0:-<25}{1:-<60}{2:<30}'.format(index_print, name, size_print)
-#             print info
-#             print
-
-def print_data(data):
+def print_data(data, org_name):
+    print "RESULTS FOR '{}':\n".format(org_name)
     dict_to_get = {}
     for query_cat, v in sorted(data.iteritems(), key=lambda (k, v): v["catID"]):
         if not v["results"]:
@@ -285,9 +304,8 @@ category 3, and 1-10 as well as 13 from category 7.
 ###############################################################################
 """)
 
-# print select_blurb
 print long_blurb
-url_dict = print_data(file_list)
+url_dict = print_data(file_list, organism)
 
 def get_user_choice():
     choice = raw_input("Enter file selection ('q' to quit, 'usage' to review syntax):\n>")
@@ -297,7 +315,7 @@ def get_user_choice():
         print
         return get_user_choice()
     elif choice.lower() in ("q", "quit", "exit"):
-        sys.exit("Exiting program now.")
+        cleanExit()
     else:
         return choice
 
@@ -308,7 +326,7 @@ def parse_selection(user_input):
     parts = user_input.split(";")
     for p in parts:
         if len(p.split(":")) > 2:
-            sys.exit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(p))
+            cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(p))
         category, indices = p.split(":")
         category = int(category)
 #         print category
@@ -322,12 +340,11 @@ def parse_selection(user_input):
                 try:
                     start, stop = map(int, i.split("-"))
                 except:
-                    sys.exit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(i))
+                    cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(i))
                 add_range = range(start, stop + 1)
                 for e in add_range:
                     cat_list.append(e)
     return selections
-
 
 ids_dict = parse_selection(user_choice)
 urls_to_get = []
@@ -349,7 +366,7 @@ size_string = "{} {}".format(adjusted, unit)
 print ("Total download size of selected files: {}".format(size_string))
 download = raw_input("Continue? (y/n)")
 if download.lower() != "y":
-    sys.exit("ABORTING DOWNLOAD")
+    cleanExit("ABORTING DOWNLOAD")
 
 # Run curl commands to retrieve selected files
 downloaded_files = []
@@ -375,14 +392,12 @@ if unzip == 'y':
     unzip_files(downloaded_files)
     print 'Finished unzipping all files.'
 
-import time
 # Clean up and exit
 keep_temp = "n"
 keep_temp = raw_input("Keep temporary files ('{}' and 'cookies') (y/n)?\n>"
                       .format(xml_index_filename))
 if keep_temp.lower() not in "y, yes":
-    print 'Removing temporary files and exiting.'
-    subprocess.call('rm {} {}'.format(xml_index_filename, 'cookies'), shell=True)
+    cleanExit()
 else:
     print 'Leaving temporary files intact and exiting.'
 
