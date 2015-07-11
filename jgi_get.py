@@ -1,7 +1,9 @@
-#!/usr/bin/python2
-'''
+#!/usr/bin/env python2
+
+"""
 Retrieves files/directories from JGI through the curl api.
-'''
+
+"""
 import sys
 import os
 import re
@@ -19,7 +21,7 @@ def usage_blurb():
         
         Usage:
         
-        $ jgi_get.py [<jgi_address_of_organism>, <jgi_name_of_organism>] [-xml [<your_xml>]]
+        $ jgi-query.py [<jgi_address_of_organism>, <jgi_name_of_organism>] [-xml [<your_xml>]]
         
         To get <jgi_address_of_organism>, go to: http://genome.jgi.doe.gov/
         and search for your species of interest. Click through until
@@ -31,22 +33,21 @@ def usage_blurb():
         
         For the above example, the ways to run this script would be:
         
-        $ jgi_get.py http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html
+        $ jgi-query.py http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html
 
                                  -or-
 
-        $ jgi_get.py Nemve1
+        $ jgi-query.py Nemve1
 
         * If you already have the xml file for the query in the directory,
         use the -xml flag to avoid redownloading it:
 
-        $ jgi_get.py -xml <your_xml_index>
+        $ jgi-query.py -xml <your_xml_index>
 
         If the xml filename is omitted when using the -xml flag, it is assumed
         that the xml file is named '<org_name>_jgi_index.xml'""")
     print
     print '*'*80
-
 
 if len(sys.argv) < 2:
     usage_blurb()
@@ -58,14 +59,102 @@ try:
 except AttributeError:  # not in address form, assume string is name
     organism = org_address
 
-# Modify these to change the login credentials
-user = '***REMOVED***'
-password = '***REMOVED***'
+# CONFIG
+def check_config(d, config_name):
+    files = os.listdir(d)
+    if config_name in files:
+        config_path = d + "/{}".format(config_name)
+        return config_path
+    else:
+        return None
+
+def get_user_info():
+    blurb = ("\n== USER SETUP ==\n\n"
+             "It appears that this script has yet to be configured.\n"
+             "Before continuing, you will need to provide your JGI login credentials.\n"
+             "They are required by JGI's curl api, and will be stored in a config\n"
+             "file for future use (unless of course you choose to delete them).\n\n"
+             "If you need to sign up for a JGI account use the registration link at\n"
+             "https://signon.jgi-psf.org/signon\n"
+             "\n== USER CREDENTIALS ==\n")
+    print blurb
+    user_query = "JGI account username/email (or 'q' to quit): "
+    pw_query = "JGI account password (or 'q' to quit): "
+    user = raw_input(user_query)
+    if user == "q":
+        sys.exit("Exiting now.")
+    pw = raw_input(pw_query)
+    if pw == "q":
+        sys.exit("Exiting now.")
+    input_blurb = ("Use USER = '{}', PASSWORD = '{}' to configure script?\n"
+                   "(y=yes, n=exit, r=restart): ".format(user, pw))
+    user_info = {"user": user, "password": pw}
+    choice = raw_input(input_blurb)
+    if choice.lower() == "r":
+        user_info = get_user_info()
+        return user_info
+    if choice.lower() == "n":
+        sys.exit("Exiting now.")
+    if choice.lower() == "y":
+        return user_info
+
+def make_config(config_path, user_info):
+    """
+    Creates a config file <config_name> in directory
+    <d> using credentials from <user_info>.
+
+    """
+    u = user_info["user"]
+    p = user_info["password"]
+    header = "# jgi-query.py user configuration information\n"
+    config_info = "user={}\npassword={}".format(u, p)
+    with open(config_path, 'w') as config:
+        config.write(header)
+        config.write(config_info)
+
+def read_config(config):
+    with open(config) as c:
+        for line in c:
+            line = line.strip()
+            if line.startswith("user"):
+                user = line.split("=")[1]
+            if line.startswith("password"):
+                pw = line.split("=")[1]
+    if not (user and pw):
+        sys.exit("ERROR: Config file present ({}), but user and/or password not found."
+                 .format(config))
+    user_info = {"user": user, "password": pw}
+    return user_info
+
+# Get script location info
+SCRIPT_PATH = os.path.realpath(sys.argv[0])
+SCRIPT_HOME = os.path.dirname(SCRIPT_PATH)
+
+# Config should be in same directory as script
+CONFIG_FILENAME = "jgi-query.config"
+CONFIG_FILEPATH = SCRIPT_HOME + "/{}".format(CONFIG_FILENAME)
+
+# Does config file exist?
+if os.path.isfile(CONFIG_FILEPATH):  # use config file
+    user_info = read_config(CONFIG_FILEPATH)
+else:  # no config present; run config dialog
+    user_info = get_user_info()
+    make_config(CONFIG_FILEPATH, user_info)
+# /CONFIG
+
+
+# Get user information for sign-on
+USER = user_info["user"]
+PASSWORD = user_info["password"]
+
+# # Modify these to change the login credentials
+# USER = '***REMOVED***'
+# PASSWORD = '***REMOVED***'
 
 # Set curl login string using user/pw
-login = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
+LOGIN_STRING = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
         ' login={}\&password={} -b cookies -c cookies >'\
-        ' /dev/null'.format(user, password)
+        ' /dev/null'.format(USER, PASSWORD)
 
 # Get xml index of files, using existing local file or curl api
 if "-xml" in sys.argv:
@@ -77,7 +166,7 @@ if not local_xml:  # retrieve from Internet
     xml_address = 'curl'\
         ' http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism={}'\
         ' -b cookies -c cookies > {}'.format(organism, xml_index_filename)
-    subprocess.call(login, shell=True)
+    subprocess.call(LOGIN_STRING, shell=True)
     subprocess.call(xml_address, shell=True)
 else:
     xml_arg = sys.argv.index("-xml") + 1
@@ -107,7 +196,7 @@ else:
 #     return descriptors
 
 # NOW WITH RECURSION
-def recursive_hunt(parent, key, matches={}):
+def recursive_hunt(parent, key, matches=None):  # original: matches={}
     """
     This moves through the XML tree and pulls
     out entries with name=<key>. Returns a
@@ -136,7 +225,6 @@ def recursive_hunt(parent, key, matches={}):
 
 def get_file_list(root_file, categories):
     descriptors = {}
-#     uid = 0
     display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes']
     category_id = 0
     for c in sorted(categories):
@@ -211,7 +299,8 @@ desired_categories = ['ESTs',
                       'Transcripts',
                       'Genes',
                       'CDS',
-                      'Proteins']
+                      'Proteins',
+                      'Additional Files']
 file_list = get_file_list(xml_root, desired_categories)
 
 # Check if file has any categories of interest
@@ -224,7 +313,7 @@ if not any(v["results"] for v in file_list.values()):
 file_sizes = get_sizes(file_list, sizes_by_url={})
 
 def print_data(data, org_name):
-    print "RESULTS FOR '{}':\n".format(org_name)
+    print "QUERY RESULTS FOR '{}'\n".format(org_name)
     dict_to_get = {}
     for query_cat, v in sorted(data.iteritems(), key=lambda (k, v): v["catID"]):
         if not v["results"]:
@@ -253,18 +342,17 @@ def print_data(data, org_name):
 # Ask user which files to download from xml
 
 long_blurb = """
-###############################################################################
+# USAGE #######################################################################
 
 # Select one or more of the following to download, using the
-following format:
-    <category number>:<indices>;<category number>:<indices>;...
+# following format:
+#     <category number>:<indices>;<category number>:<indices>;...
 
 # Indices may be a mixture of comma-separated values and hyphen-
-separated ranges.
+# separated ranges.
 
 # For example, consider the following results:
 
----
 
 =================================== 6: Genes ===================================
 # All models, Filtered and Not:
@@ -281,28 +369,27 @@ separated ranges.
 # Filtered Models ("best"):
 [2]---------------transcripts.Nemve1FilteredModels1.fasta.gz--------------(8 MB)
 
----
 
 # To retrieve items 1 and 2 from 'Genes' and 2 from 'Transcripts', the query
 should be: '6:1,2; 7:2'
 
-###############################################################################
+# /USAGE ######################################################################
 """
-select_blurb = ("""
-###############################################################################
+select_blurb = """
+# SYNTAX ######################################################################
 
-Select one or more of the following to download, using the
-following format:
-    <category number>:<indices>;<category number>:<indices>;...
+# Select one or more of the following to download, using the
+# following format:
+#     <category number>:<indices>;<category number>:<indices>;...
 
-Indices may be a mixture of comma-separated values and hyphen-
-separated ranges.
+# Indices may be a mixture of comma-separated values and hyphen-
+# separated ranges.
 
-Example: '3:4,5; 7:1-10,13' will select elements 4 and 5 from
-category 3, and 1-10 as well as 13 from category 7.
+# Example: '3:4,5; 7:1-10,13' will select elements 4 and 5 from
+# category 3, and 1-10 as well as 13 from category 7.
 
-###############################################################################
-""")
+# /SYNTAX #####################################################################
+"""
 
 print long_blurb
 url_dict = print_data(file_list, organism)
