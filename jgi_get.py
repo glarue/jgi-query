@@ -482,7 +482,7 @@ for k, v in sorted(ids_dict.iteritems()):
 total_size = 0
 for url in urls_to_get:
     total_size += file_sizes[url]
-adjusted = round(total_size/1000000.0, 2)  # bytes to MB
+adjusted = round(total_size/1e6, 2)  # bytes to MB
 if adjusted < 1000:
     unit = "MB"
 else:
