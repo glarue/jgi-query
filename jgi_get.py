@@ -12,54 +12,15 @@ import textwrap
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
-def usage_blurb():
+# FUNCTIONS
+
+def usage_blurb(output):
     print '*'*80
     print
-    print textwrap.dedent("""\
-        This script will retrieve files from JGI using the curl api. It will
-        return a list of possible files for downloading.
-        
-        Usage:
-        
-        $ jgi-query.py [<jgi_address_of_organism>, <jgi_name_of_organism>] [-xml [<your_xml>]]
-        
-        To get <jgi_address_of_organism>, go to: http://genome.jgi.doe.gov/
-        and search for your species of interest. Click through until
-        you are at the main page. For \x1B[3mNematostella vectensis\x1B[23m, the
-        desired page is "http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html".
-
-        To query using only the name simply requires the specific JGI
-        organism abbreviation, as referenced in the full url.
-        
-        For the above example, the ways to run this script would be:
-        
-        $ jgi-query.py http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html
-
-                                 -or-
-
-        $ jgi-query.py Nemve1
-
-        * If you already have the xml file for the query in the directory,
-        use the -xml flag to avoid redownloading it:
-
-        $ jgi-query.py -xml <your_xml_index>
-
-        If the xml filename is omitted when using the -xml flag, it is assumed
-        that the xml file is named '<org_name>_jgi_index.xml'""")
+    print textwrap.dedent(output)
     print
     print '*'*80
 
-if len(sys.argv) < 2:
-    usage_blurb()
-    sys.exit(0)
-
-org_address = sys.argv[1]
-try:
-    organism = re.search("\.jgi.+\.(?:gov|org)/(.+)/", org_address).group(1)
-except AttributeError:  # not in address form, assume string is name
-    organism = org_address
-
-# CONFIG
 def check_config(d, config_name):
     files = os.listdir(d)
     if config_name in files:
@@ -69,6 +30,11 @@ def check_config(d, config_name):
         return None
 
 def get_user_info():
+    """
+    Dialog with user to gather user information for
+    use with the curl query. Returns a dict.
+
+    """
     blurb = ("\n== USER SETUP ==\n\n"
              "It appears that this script has yet to be configured.\n"
              "Before continuing, you will need to provide your JGI login credentials.\n"
@@ -101,7 +67,7 @@ def get_user_info():
 def make_config(config_path, user_info):
     """
     Creates a config file <config_name> in directory
-    <d> using credentials from <user_info>.
+    <d> using credentials from dict <user_info>.
 
     """
     u = user_info["user"]
@@ -113,6 +79,11 @@ def make_config(config_path, user_info):
         config.write(config_info)
 
 def read_config(config):
+    """
+    Reads "user" and "password" entries from config
+    file.
+
+    """
     with open(config) as c:
         for line in c:
             line = line.strip()
@@ -126,55 +97,7 @@ def read_config(config):
     user_info = {"user": user, "password": pw}
     return user_info
 
-# Get script location info
-SCRIPT_PATH = os.path.realpath(sys.argv[0])
-SCRIPT_HOME = os.path.dirname(SCRIPT_PATH)
-
-# Config should be in same directory as script
-CONFIG_FILENAME = "jgi-query.config"
-CONFIG_FILEPATH = SCRIPT_HOME + "/{}".format(CONFIG_FILENAME)
-
-# Does config file exist?
-if os.path.isfile(CONFIG_FILEPATH):  # use config file
-    user_info = read_config(CONFIG_FILEPATH)
-else:  # no config present; run config dialog
-    user_info = get_user_info()
-    make_config(CONFIG_FILEPATH, user_info)
 # /CONFIG
-
-
-# Get user information for sign-on
-USER = user_info["user"]
-PASSWORD = user_info["password"]
-
-# # Modify these to change the login credentials
-# USER = 'roylabsfsu@gmail.com'
-# PASSWORD = 'splice!@#$sfsu'
-
-# Set curl login string using user/pw
-LOGIN_STRING = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
-        ' login={}\&password={} -b cookies -c cookies >'\
-        ' /dev/null'.format(USER, PASSWORD)
-
-# Get xml index of files, using existing local file or curl api
-if "-xml" in sys.argv:
-    local_xml = True
-else:
-    local_xml = False
-if not local_xml:  # retrieve from Internet
-    xml_index_filename = '{}_jgi_index.xml'.format(organism)
-    xml_address = 'curl'\
-        ' http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism={}'\
-        ' -b cookies -c cookies > {}'.format(organism, xml_index_filename)
-    subprocess.call(LOGIN_STRING, shell=True)
-    subprocess.call(xml_address, shell=True)
-else:
-    xml_arg = sys.argv.index("-xml") + 1
-    try:
-        xml_index_filename = sys.argv[xml_arg]
-    except IndexError:  # -xml flag used without argument
-        xml_index_filename = '{}_jgi_index.xml'.format(organism)
-
 
 # # Deprecated method, kept as reference
 # def file_list(categories):
@@ -196,7 +119,7 @@ else:
 #     return descriptors
 
 # NOW WITH RECURSION
-def recursive_hunt(parent, key, matches=None):  # original: matches={}
+def recursive_hunt(parent, key, matches=None):  # original, unsafe: matches={}
     """
     This moves through the XML tree and pulls
     out entries with name=<key>. Returns a
@@ -222,8 +145,12 @@ def recursive_hunt(parent, key, matches=None):  # original: matches={}
             return matches
     return matches
 
-
 def get_file_list(root_file, categories):
+    """
+    Moves through the xml document <root_file> and returns information
+    about matches to elements in <categories>.
+
+    """
     descriptors = {}
     display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes']
     category_id = 0
@@ -252,7 +179,7 @@ def get_file_list(root_file, categories):
                 uid += 1
     return descriptors
 
-def get_sizes(d, sizes_by_url={}):
+def get_sizes(d, sizes_by_url=None):  # original, unsafe: sizes_by_url={}
     """
     Builds a dictionary of url:sizes from
     output of get_file_list()
@@ -284,35 +211,20 @@ def cleanExit(exit_message=None):
         print_message = ""
     sys.exit("{}Removing temp files and exiting".format(print_message))
 
-# Parse xml file for files to download
-try:
-    xml_in = ET.parse(xml_index_filename)
-    xml_root = xml_in.getroot()
-except:
-    cleanExit("Cannot parse xml file. Make sure file exists and has content.")
-
-# Build local file info
-desired_categories = ['ESTs',
-                      'EST Clusters',
-                      'Assembled scaffolds (unmasked)',
-                      'Assembled scaffolds (masked)',
-                      'Transcripts',
-                      'Genes',
-                      'CDS',
-                      'Proteins',
-                      'Additional Files']
-file_list = get_file_list(xml_root, desired_categories)
-
-# Check if file has any categories of interest
-if not any(v["results"] for v in file_list.values()):
-    print ("ERROR: no results found for '{}' in any of the following "
-           "categories:\n---\n{}\n---"
-           .format(organism, "\n".join(desired_categories)))
-    cleanExit()
-
-file_sizes = get_sizes(file_list, sizes_by_url={})
+def unzip_files(local_file_list):
+    for e in local_file_list:
+        if re.search('(?<!tar)\.gz$', e):  # is only .gz
+            subprocess.call(['gunzip', e])
+        elif re.search('tar.gz$', e):
+            subprocess.call(['tar', '-zxvf', e])  # is .tar.gz
 
 def print_data(data, org_name):
+    """
+    Prints info in dict <data> in a formatted manner.
+    Returns a dict with url information for every file
+    in desired categories.
+
+    """
     print "QUERY RESULTS FOR '{}'\n".format(org_name)
     dict_to_get = {}
     for query_cat, v in sorted(data.iteritems(), key=lambda (k, v): v["catID"]):
@@ -326,8 +238,6 @@ def print_data(data, org_name):
                                      key=lambda (sub_cat, items): items.items()[0]):
             print "# {}:".format(sub_cat)
             for index, i in sorted(items.iteritems()):
-                # name = i["label"]
-                # size = i["size"]
                 dict_to_get[catID][index] = i["url"]
                 print_index = "[{}]".format(str(index))
                 size = "({})".format(i["size"])
@@ -338,8 +248,79 @@ def print_data(data, org_name):
             print  # padding
     return dict_to_get
 
+def get_user_choice():
+    choice = raw_input("Enter file selection ('q' to quit, 'usage' to review syntax):\n>")
+    if choice == "usage":
+        print
+        print select_blurb
+        print
+        return get_user_choice()
+    elif choice.lower() in ("q", "quit", "exit"):
+        cleanExit()
+    else:
+        return choice
 
-# Ask user which files to download from xml
+def parse_selection(user_input):
+    selections = {}
+    parts = user_input.split(";")
+    for p in parts:
+        if len(p.split(":")) > 2:
+            cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(p))
+        category, indices = p.split(":")
+        category = int(category)
+#         print category
+        selections[category] = []
+        cat_list = selections[category]
+        indices = indices.split(",")
+        for i in indices:
+            try:
+                cat_list.append(int(i))  # if it's already an integer
+            except ValueError:
+                try:
+                    start, stop = map(int, i.split("-"))
+                except:
+                    cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(i))
+                add_range = range(start, stop + 1)
+                for e in add_range:
+                    cat_list.append(e)
+    return selections
+
+# /FUNCTIONS
+
+# BLURBS
+
+empty_arg_blurb = """\
+This script will retrieve files from JGI using the curl api. It will
+return a list of possible files for downloading.
+
+Usage:
+
+$ jgi-query.py [<jgi_address_of_organism>, <jgi_name_of_organism>] [-xml [<your_xml>]]
+
+To get <jgi_address_of_organism>, go to: http://genome.jgi.doe.gov/
+and search for your species of interest. Click through until
+you are at the main page. For \x1B[3mNematostella vectensis\x1B[23m, the
+desired page is "http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html".
+
+To query using only the name simply requires the specific JGI
+organism abbreviation, as referenced in the full url.
+
+For the above example, the ways to run this script would be:
+
+$ jgi-query.py http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html
+
+                         -or-
+
+$ jgi-query.py Nemve1
+
+* If you already have the xml file for the query in the directory,
+use the -xml flag to avoid redownloading it:
+
+$ jgi-query.py -xml <your_xml_index>
+
+If the xml filename is omitted when using the -xml flag, it is assumed
+that the xml file is named '<org_name>_jgi_index.xml'"""
+
 
 long_blurb = """
 # USAGE #######################################################################
@@ -391,59 +372,117 @@ select_blurb = """
 # /SYNTAX #####################################################################
 """
 
-print long_blurb
-url_dict = print_data(file_list, organism)
+# /BLURBS
 
-def get_user_choice():
-    choice = raw_input("Enter file selection ('q' to quit, 'usage' to review syntax):\n>")
-    if choice == "usage":
-        print
-        print select_blurb
-        print
-        return get_user_choice()
-    elif choice.lower() in ("q", "quit", "exit"):
-        cleanExit()
-    else:
-        return choice
+# Check arguments and exit if too short
+if len(sys.argv) < 2:
+    usage_blurb(empty_arg_blurb)
+    sys.exit(0)
+
+# Get organism name for query
+org_input = sys.argv[1]
+try:  # see if it's in address form
+    organism = re.search("\.jgi.+\.(?:gov|org)/(.+)/", org_input).group(1)
+except AttributeError:  # not in address form, assume string is name
+    organism = org_input
+
+# CONFIG
+
+# Get script location info
+SCRIPT_PATH = os.path.realpath(sys.argv[0])
+SCRIPT_HOME = os.path.dirname(SCRIPT_PATH)
+
+# Config should be in same directory as script
+CONFIG_FILENAME = "jgi-query.config"
+CONFIG_FILEPATH = SCRIPT_HOME + "/{}".format(CONFIG_FILENAME)
+
+# Does config file exist?
+if os.path.isfile(CONFIG_FILEPATH):  # use config file
+    user_info = read_config(CONFIG_FILEPATH)
+else:  # no config present; run config dialog
+    user_info = get_user_info()
+    make_config(CONFIG_FILEPATH, user_info)
+
+# /CONFIG
+
+# Get user information for sign-on
+USER = user_info["user"]
+PASSWORD = user_info["password"]
+
+# Set curl login string using user and password as per https://goo.gl/oppZ2a
+LOGIN_STRING = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
+               ' login={}\&password={} -b cookies -c cookies >'\
+               ' /dev/null'.format(USER, PASSWORD)
+
+# Get xml index of files, using existing local file or curl api
+if "-xml" in sys.argv:
+    local_xml = True
+else:
+    local_xml = False
+if not local_xml:  # retrieve from Internet
+    xml_index_filename = '{}_jgi_index.xml'.format(organism)
+    xml_address = 'curl'\
+        ' http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism={}'\
+        ' -b cookies -c cookies > {}'.format(organism, xml_index_filename)
+    subprocess.call(LOGIN_STRING, shell=True)
+    subprocess.call(xml_address, shell=True)
+else:
+    xml_arg = sys.argv.index("-xml") + 1
+    try:
+        xml_index_filename = sys.argv[xml_arg]
+    except IndexError:  # -xml flag used without argument
+        xml_index_filename = '{}_jgi_index.xml'.format(organism)
+
+
+# Parse xml file for files to download
+try:
+    xml_in = ET.parse(xml_index_filename)
+    xml_root = xml_in.getroot()
+except:
+    cleanExit("Cannot parse xml file or no organism match found. "
+              "Ensure file exists and has content.")
+
+# Build local file info
+# To do: put these in config file
+desired_categories = ['ESTs',
+                      'EST Clusters',
+                      'Assembled scaffolds (unmasked)',
+                      'Assembled scaffolds (masked)',
+                      'Transcripts',
+                      'Genes',
+                      'CDS',
+                      'Proteins',
+                      'Additional Files']
+file_list = get_file_list(xml_root, desired_categories)
+
+# Check if file has any categories of interest
+if not any(v["results"] for v in file_list.values()):
+    print ("ERROR: no results found for '{}' in any of the following "
+           "categories:\n---\n{}\n---"
+           .format(organism, "\n".join(desired_categories)))
+    cleanExit()
+
+file_sizes = get_sizes(file_list, sizes_by_url={})
+
+# Ask user which files to download from xml
+print long_blurb
+print  # padding
+url_dict = print_data(file_list, organism)
 
 user_choice = get_user_choice()
 
-def parse_selection(user_input):
-    selections = {}
-    parts = user_input.split(";")
-    for p in parts:
-        if len(p.split(":")) > 2:
-            cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(p))
-        category, indices = p.split(":")
-        category = int(category)
-#         print category
-        selections[category] = []
-        cat_list = selections[category]
-        indices = indices.split(",")
-        for i in indices:
-            try:
-                cat_list.append(int(i))  # if it's already an integer
-            except ValueError:
-                try:
-                    start, stop = map(int, i.split("-"))
-                except:
-                    cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(i))
-                add_range = range(start, stop + 1)
-                for e in add_range:
-                    cat_list.append(e)
-    return selections
-
+# Retrieve user-selected file urls from dict
 ids_dict = parse_selection(user_choice)
 urls_to_get = []
 for k, v in sorted(ids_dict.iteritems()):
     for i in v:
         urls_to_get.append(url_dict[k][i])
 
-# Calculate total size of selected data
+# Calculate and display total size of selected data
 total_size = 0
 for url in urls_to_get:
     total_size += file_sizes[url]
-adjusted = round(total_size/1000000.0, 2)
+adjusted = round(total_size/1000000.0, 2)  # bytes to MB
 if adjusted < 1000:
     unit = "MB"
 else:
@@ -457,7 +496,6 @@ if download.lower() != "y":
 
 # Run curl commands to retrieve selected files
 downloaded_files = []
-
 for url in urls_to_get:
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
@@ -468,19 +506,15 @@ for url in urls_to_get:
 #    subprocess.call(login, shell=True)
     subprocess.call(download_command, shell=True)
 
-def unzip_files(local_file_list):
-    for e in local_file_list:
-        if re.search('(?<!tar)\.gz$', e):
-            subprocess.call(['gunzip', e])
-
 print 'Finished downloading all files.'
+
+# Kindly offer to unpack files
 unzip = raw_input('Unzip all downloaded files? (y/n): ')
 if unzip == 'y':
     unzip_files(downloaded_files)
     print 'Finished unzipping all files.'
 
 # Clean up and exit
-keep_temp = "n"
 keep_temp = raw_input("Keep temporary files ('{}' and 'cookies') (y/n)?\n>"
                       .format(xml_index_filename))
 if keep_temp.lower() not in "y, yes":
