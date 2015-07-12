@@ -21,6 +21,9 @@ def usage_blurb(output):
     print
     print '*'*80
 
+def deindent(string):
+    print textwrap.dedent(string)
+
 def check_config(d, config_name):
     files = os.listdir(d)
     if config_name in files:
@@ -35,15 +38,21 @@ def get_user_info():
     use with the curl query. Returns a dict.
 
     """
-    blurb = ("\n== USER SETUP ==\n\n"
-             "It appears that this script has yet to be configured.\n"
-             "Before continuing, you will need to provide your JGI login credentials.\n"
-             "They are required by JGI's curl api, and will be stored in a config\n"
-             "file for future use (unless of course you choose to delete them).\n\n"
-             "If you need to sign up for a JGI account use the registration link at\n"
-             "https://signon.jgi-psf.org/signon\n"
-             "\n== USER CREDENTIALS ==\n")
-    print blurb
+    blurb = """
+    === USER SETUP ===
+
+    It appears that this script has yet to be configured.
+
+    Before continuing, you will need to provide your JGI login credentials.
+    These are required by JGI's curl api, and will be stored in a config
+    file for future use (unless you choose to delete them).
+
+    If you need to sign up for a JGI account, use the registration link at
+    https://signon.jgi-psf.org/signon
+
+    === CREDENTIALS ===
+    """
+    deindent(blurb)
     user_query = "JGI account username/email (or 'q' to quit): "
     pw_query = "JGI account password (or 'q' to quit): "
     user = raw_input(user_query)
@@ -196,7 +205,6 @@ def get_sizes(d, sizes_by_url=None):  # original, unsafe: sizes_by_url={}
     return sizes_by_url
 
 def cleanExit(exit_message=None):
-    # subprocess.call('rm {} {}'.format(xml_index_filename, 'cookies'), shell=True)
     to_remove = ["cookies"]
     if not local_xml:  # don't delete xml file if supplied by user
         to_remove.append(xml_index_filename)
@@ -268,7 +276,6 @@ def parse_selection(user_input):
             cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(p))
         category, indices = p.split(":")
         category = int(category)
-#         print category
         selections[category] = []
         cat_list = selections[category]
         indices = indices.split(",")
@@ -352,22 +359,22 @@ long_blurb = """
 
 
 # To retrieve items 1 and 2 from 'Genes' and 2 from 'Transcripts', the query
-should be: '6:1,2; 7:2'
+# should be: '6:1,2; 7:2'
 
 # /USAGE ######################################################################
 """
 select_blurb = """
 # SYNTAX ######################################################################
 
-# Select one or more of the following to download, using the
-# following format:
-#     <category number>:<indices>;<category number>:<indices>;...
+Select one or more of the following to download, using the
+following format:
+    <category number>:<indices>;<category number>:<indices>;...
 
-# Indices may be a mixture of comma-separated values and hyphen-
-# separated ranges.
+Indices may be a mixture of comma-separated values and hyphen-
+separated ranges.
 
-# Example: '3:4,5; 7:1-10,13' will select elements 4 and 5 from
-# category 3, and 1-10 as well as 13 from category 7.
+Example: '3:4,5; 7:1-10,13' will select elements 4 and 5 from
+category 3, and 1-10 as well as 13 from category 7.
 
 # /SYNTAX #####################################################################
 """
@@ -383,7 +390,7 @@ if len(sys.argv) < 2:
 org_input = sys.argv[1]
 try:  # see if it's in address form
     organism = re.search("\.jgi.+\.(?:gov|org)/(.+)/", org_input).group(1)
-except AttributeError:  # not in address form, assume string is name
+except AttributeError:  # not in address form, assume string is organism name
     organism = org_input
 
 # CONFIG
@@ -434,13 +441,17 @@ else:
         xml_index_filename = '{}_jgi_index.xml'.format(organism)
 
 
-# Parse xml file for files to download
+# Parse xml file for content to download
+if os.path.getsize(xml_index_filename) == 0:  # happens if user and/or pw wrong
+    os.remove(CONFIG_FILEPATH)
+    cleanExit("Invalid username/password combination.\n"
+              "Please restart script and re-enter user credentials.")
 try:
     xml_in = ET.parse(xml_index_filename)
     xml_root = xml_in.getroot()
-except:
+except ET.ParseError:  # organism not found: xml file contains errors
     cleanExit("Cannot parse xml file or no organism match found. "
-              "Ensure file exists and has content.")
+              "Ensure remote file exists and has content.")
 
 # Build local file info
 # To do: put these in config file
