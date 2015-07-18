@@ -11,6 +11,7 @@ import subprocess
 import textwrap
 import xml.etree.ElementTree as ET
 from collections import defaultdict
+import argparse
 
 # FUNCTIONS
 
@@ -41,7 +42,7 @@ def get_user_info():
     blurb = """
     === USER SETUP ===
 
-    It appears that this script has yet to be configured.
+    JGI access configuration:
 
     Before continuing, you will need to provide your JGI login credentials.
     These are required by JGI's curl api, and will be stored in a config
@@ -61,17 +62,18 @@ def get_user_info():
     pw = raw_input(pw_query)
     if pw == "q":
         sys.exit("Exiting now.")
-    input_blurb = ("Use USER = '{}', PASSWORD = '{}' to configure script?\n"
-                   "(y=yes, n=exit, r=restart): ".format(user, pw))
+    input_blurb = ("Proceed with USER='{}', PASSWORD='{}' to configure script?\n"
+                   "([y]es, [n]o, [r]estart): ".format(user, pw))
     user_info = {"user": user, "password": pw}
-    choice = raw_input(input_blurb)
-    if choice.lower() == "r":
-        user_info = get_user_info()
-        return user_info
-    if choice.lower() == "n":
-        sys.exit("Exiting now.")
-    if choice.lower() == "y":
-        return user_info
+    while True:  # catch invalid responses
+        choice = raw_input(input_blurb)
+        if choice.lower() == "r":
+            user_info = get_user_info()
+            return user_info
+        if choice.lower() == "n":
+            sys.exit("Exiting now.")
+        if choice.lower() == "y":
+            return user_info
 
 def make_config(config_path, user_info):
     """
@@ -81,7 +83,7 @@ def make_config(config_path, user_info):
     """
     u = user_info["user"]
     p = user_info["password"]
-    header = "# jgi-query.py user configuration information\n"
+    header = "# jgi-query.py user configuration information {}\n".format("#" * 34)
     config_info = "user={}\npassword={}".format(u, p)
     with open(config_path, 'w') as config:
         config.write(header)
@@ -132,7 +134,7 @@ def recursive_hunt(parent, key, matches=None):  # original, unsafe: matches={}
     """
     This moves through the XML tree and pulls
     out entries with name=<key>. Returns a
-    dict of matches.
+    dict of matches with parent name as key.
 
     """
     for child in parent.getchildren():
@@ -228,8 +230,8 @@ def unzip_files(local_file_list):
 
 def print_data(data, org_name):
     """
-    Prints info in dict <data> in a formatted manner.
-    Returns a dict with url information for every file
+    Prints info from dict. <data> in a specific format.
+    Also returns a dict with url information for every file
     in desired categories.
 
     """
@@ -269,6 +271,12 @@ def get_user_choice():
         return choice
 
 def parse_selection(user_input):
+    """
+    Parses the user choice string and returns a dictionary
+    of categories (keys) and choices within each category
+    (values).
+
+    """
     selections = {}
     parts = user_input.split(";")
     for p in parts:
@@ -330,7 +338,7 @@ that the xml file is named '<org_name>_jgi_index.xml'"""
 
 
 long_blurb = """
-# USAGE #######################################################################
+# USAGE ///////////////////////////////////////////////////////////////////////
 
 # Select one or more of the following to download, using the
 # following format:
@@ -361,37 +369,64 @@ long_blurb = """
 # To retrieve items 1 and 2 from 'Genes' and 2 from 'Transcripts', the query
 # should be: '6:1,2; 7:2'
 
-# /USAGE ######################################################################
+# /USAGE //////////////////////////////////////////////////////////////////////
 """
+
 select_blurb = """
-# SYNTAX ######################################################################
+# SYNTAX //////////////////////////////////////////////////////////////////////
 
-Select one or more of the following to download, using the
-following format:
-    <category number>:<indices>;<category number>:<indices>;...
+Select one or more of the following to download, using the following format:
 
-Indices may be a mixture of comma-separated values and hyphen-
+    <category number>:<i>[,<i>, <i>];<category number>:<i>-<i>;...
+
+Indices (<i>) may be a mixture of comma-separated values and hyphen-
 separated ranges.
 
-Example: '3:4,5; 7:1-10,13' will select elements 4 and 5 from
-category 3, and 1-10 as well as 13 from category 7.
+Example: '3:4,5; 7:1-10,13' will select elements 4 and 5 from category 3, and
+1-10, 13 from category 7.
 
-# /SYNTAX #####################################################################
+# /SYNTAX /////////////////////////////////////////////////////////////////////
 """
 
 # /BLURBS
 
-# Check arguments and exit if too short
-if len(sys.argv) < 2:
-    usage_blurb(empty_arg_blurb)
-    sys.exit(0)
+# ARG PARSER
+parser = argparse.ArgumentParser(
+    description="This script will list and retrieve files from JGI using the "
+                "curl API. It will return a list of all files available for "
+                "download for a given query organism.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("organism_abbreviation", nargs='?',
+                    help="organism name formatted per JGI's abbreviation. For "
+                         "example, 'Nematostella vectensis' is abbreviated by"
+                         "JGI as 'Nemve1'. The appropriate abbreviation may be "
+                         "found by searching for the organism on JGI; the name "
+                         "used in the URL of the 'Home' page for that organism "
+                         "is the correct abbreviation. The full URL may also be "
+                         "used for this argument.")
+parser.add_argument("-x", "--xml", nargs='?', const=1,
+                    help="specify a local xml file for the query instead of "
+                         "retrieving a new copy from JGI.")
+parser.add_argument("-c", "--configure", action='store_true',
+                    help="initiate configuration dialog to overwrite existing "
+                         "user/password configuration.")
+parser.add_argument("-s", "--syntax_help", action='store_true')
 
-# Get organism name for query
-org_input = sys.argv[1]
-try:  # see if it's in address form
-    organism = re.search("\.jgi.+\.(?:gov|org)/(.+)/", org_input).group(1)
-except AttributeError:  # not in address form, assume string is organism name
-    organism = org_input
+# /ARG PARSER
+
+# # Check arguments and exit if too short
+# if len(sys.argv) < 2:
+#     usage_blurb(empty_arg_blurb)
+#     sys.exit(0)
+if len(sys.argv) == 1:
+    parser.print_help()
+    sys.exit(1)
+
+args = parser.parse_args()
+
+# Check if user wants query syntax help
+if args.syntax_help:
+    sys.exit(select_blurb)
 
 # CONFIG
 
@@ -404,9 +439,9 @@ CONFIG_FILENAME = "jgi-query.config"
 CONFIG_FILEPATH = SCRIPT_HOME + "/{}".format(CONFIG_FILENAME)
 
 # Does config file exist?
-if os.path.isfile(CONFIG_FILEPATH):  # use config file
+if os.path.isfile(CONFIG_FILEPATH) and not args.configure:  # use config file
     user_info = read_config(CONFIG_FILEPATH)
-else:  # no config present; run config dialog
+else:  # no config present or configure flag used; run config dialog
     user_info = get_user_info()
     make_config(CONFIG_FILEPATH, user_info)
 
@@ -421,16 +456,35 @@ LOGIN_STRING = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
                ' login={}\&password={} -b cookies -c cookies >'\
                ' /dev/null'.format(USER, PASSWORD)
 
-# Get xml index of files, using existing local file or curl api
-if "-xml" in sys.argv:
+# Get organism name for query
+# org_input = sys.argv[1]
+org_input = args.organism_abbreviation
+if not org_input:
+    if args.configure:
+        sys.exit("Configuration complete. Script may now be used to query JGI. "
+                 "Exiting now.")
+    else:
+        sys.exit("No organism specified. Exiting now.")
+try:  # see if it's in address form
+    organism = re.search("\.jgi.+\.(?:gov|org)/(.+)/", org_input).group(1)
+except AttributeError:  # not in address form, assume string is organism name
+    organism = org_input
+
+# URL where remote XML file should be, if it exists
+org_url = ("http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism={}"
+           .format(organism))
+
+
+# Get xml index of files, using existing local file or curl API
+# if "-xml" in sys.argv:
+if args.xml:
     local_xml = True
 else:
     local_xml = False
-if not local_xml:  # retrieve from Internet
+if not local_xml:  # retrieve from JGI
     xml_index_filename = '{}_jgi_index.xml'.format(organism)
-    xml_address = 'curl'\
-        ' http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism={}'\
-        ' -b cookies -c cookies > {}'.format(organism, xml_index_filename)
+    xml_address = ("curl {} -b cookies -c cookies > {}"
+                   .format(org_url, xml_index_filename))
     subprocess.call(LOGIN_STRING, shell=True)
     subprocess.call(xml_address, shell=True)
 else:
@@ -450,8 +504,9 @@ try:
     xml_in = ET.parse(xml_index_filename)
     xml_root = xml_in.getroot()
 except ET.ParseError:  # organism not found: xml file contains errors
-    cleanExit("Cannot parse xml file or no organism match found. "
-              "Ensure remote file exists and has content.")
+    cleanExit("Cannot parse XML file or no organism match found.\n"
+              "Ensure remote file exists and has content at the following address:\n"
+              "{}".format(org_url))
 
 # Build local file info
 # To do: put these in config file
