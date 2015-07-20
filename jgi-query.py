@@ -75,19 +75,21 @@ def get_user_info():
         if choice.lower() == "y":
             return user_info
 
-def make_config(config_path, user_info):
+def make_config(config_path, config_info):
     """
-    Creates a config file <config_name> in directory
-    <d> using credentials from dict <user_info>.
+    Creates a config file <config_path> using
+    credentials from dict <config_info>.
 
     """
-    u = user_info["user"]
-    p = user_info["password"]
+    u = config_info["user"]
+    p = config_info["password"]
+    c = config_info["categories"]
+    c = ",".join(c)
     header = "# jgi-query.py user configuration information {}\n".format("#" * 34)
-    config_info = "user={}\npassword={}".format(u, p)
+    info = "user={}\npassword={}\ncategories={}".format(u, p, c)
     with open(config_path, 'w') as config:
         config.write(header)
-        config.write(config_info)
+        config.write(info)
 
 def read_config(config):
     """
@@ -95,6 +97,7 @@ def read_config(config):
     file.
 
     """
+    user, pw, categories = None, None, None
     with open(config) as c:
         for line in c:
             line = line.strip()
@@ -102,11 +105,14 @@ def read_config(config):
                 user = line.split("=")[1]
             if line.startswith("password"):
                 pw = line.split("=")[1]
+            if line.startswith("categories"):
+                cats = line.strip().split("=")[1]
+                categories = [e.strip() for e in cats.split(",")]
     if not (user and pw):
         sys.exit("ERROR: Config file present ({}), but user and/or password not found."
                  .format(config))
-    user_info = {"user": user, "password": pw}
-    return user_info
+    config_info = {"user": user, "password": pw, "categories": categories}
+    return config_info
 
 # /CONFIG
 
@@ -174,6 +180,91 @@ def get_file_list(root_file, categories):
         descriptors[c]["catID"] = category_id
         uid = 1
         for parent, children in sorted(found.iteritems()):
+            descriptors[c]["results"][parent] = defaultdict(dict)
+            results = descriptors[c]["results"][parent]
+            children = [e for e in children if 'filename' in e]
+            for child in sorted(children, key=lambda x: x['filename']):
+                try:
+                    results[uid]
+                except KeyError:
+                    results[uid] = {}
+                for dc in display_cats:
+                    try:
+                        results[uid][dc] = child[dc]
+                    except KeyError:
+                        continue
+                uid += 1
+    return descriptors
+
+# Work in progress - doesn't organize files particularly well
+# Will get *all* files, instead of working from a list of categories
+def recursive_hunt_all(root, parents=None, matches=None, level=1, reset=True):
+    """
+    Gets list of all XML entries with "filename" attribute,
+    and returns a dictionary of the file attributes keyed
+    by a ":"-joined string of parent names.
+
+    """
+    for c in root.getchildren():
+        base_level = level
+        if "filename" not in c.attrib:
+            try:  # if name, is one of parents
+                parents.append(c.attrib['name'])
+            except KeyError:
+                pass
+            recursive_hunt_all(c, parents, matches, level + 1, reset=True)
+        else:
+            reset = False
+            parent_string = ":".join(parents)
+            try:
+                matches[parent_string].append(c.attrib)
+            except KeyError:
+                matches[parent_string] = [c.attrib]
+        if reset:  # only true if out of files block
+            level -= 1
+            parents = parents[:level]
+        level = base_level  # this gets the correct levels of all folders
+    return matches
+
+def format_found(d):
+    """
+    Reformats the output from recursive_hunt_all()
+
+    """
+    output = {}
+    for p, c in sorted(d.iteritems()):
+        layers = [e for e in p.split(":") if e]
+        top = layers[-1]
+        if len(layers) < 2:
+            parent = top
+        else:
+            parent = layers[-2]
+        if top not in output:
+            output[top] = defaultdict(dict)
+        output[top][parent] = c
+    return output
+
+# Goes with recursive_hunt_all()
+def get_file_list_all(root_file):
+    """
+    Moves through the xml document <root_file> and returns information
+    about matches to elements in <categories>.
+
+    """
+    descriptors = {}
+    display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes']
+    found = recursive_hunt_all(root_file, parents=[], matches={})
+    found = format_found(found)
+    if not found.values():
+        return None
+    category_id = 0
+    for category, sub_cat in sorted(found.iteritems()):
+        c = category
+        category_id += 1
+        descriptors[c] = defaultdict(dict)
+        descriptors[c]["catID"] = category_id
+        uid = 1
+        for parent, children in sorted(sub_cat.iteritems()):
             descriptors[c]["results"][parent] = defaultdict(dict)
             results = descriptors[c]["results"][parent]
             children = [e for e in children if 'filename' in e]
@@ -304,21 +395,24 @@ def parse_selection(user_input):
 
 # BLURBS
 
-empty_arg_blurb = """\
-This script will retrieve files from JGI using the curl api. It will
+usage_example_blurb = """\
+This script will retrieve files from JGI using the cURL api. It will
 return a list of possible files for downloading.
 
-Usage:
+* This script depends upon cURL - it can be downloaded here:
+http://curl.haxx.se/
 
-$ jgi-query.py [<jgi_address_of_organism>, <jgi_name_of_organism>] [-xml [<your_xml>]]
+Usage /////////////////////////////////////////////////////////////////////////
 
-To get <jgi_address_of_organism>, go to: http://genome.jgi.doe.gov/
-and search for your species of interest. Click through until
-you are at the main page. For \x1B[3mNematostella vectensis\x1B[23m, the
-desired page is "http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html".
+$ jgi-query.py [<jgi_address>, <jgi_abbreviation>] [[-xml [<your_xml>]], -a]
 
-To query using only the name simply requires the specific JGI
-organism abbreviation, as referenced in the full url.
+To get <jgi_address>, go to: http://genome.jgi.doe.gov/ and search for your
+species of interest. Click through until you are at the "Info" page. For
+\x1B[3mNematostella vectensis\x1B[23m, the appropriate page is
+"http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html".
+
+To query using only the name simply requires the specific JGI organism
+abbreviation, as referenced in the full url.
 
 For the above example, the ways to run this script would be:
 
@@ -329,12 +423,12 @@ $ jgi-query.py http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html
 $ jgi-query.py Nemve1
 
 * If you already have the xml file for the query in the directory,
-use the -xml flag to avoid redownloading it:
+you may use the -xml flag to avoid redownloading it:
 
 $ jgi-query.py -xml <your_xml_index>
 
-If the xml filename is omitted when using the -xml flag, it is assumed
-that the xml file is named '<org_name>_jgi_index.xml'"""
+If the XML filename is omitted when using the -xml flag, it is assumed
+that the XML file is named '<org_name>_jgi_index.xml'"""
 
 
 long_blurb = """
@@ -398,35 +492,40 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("organism_abbreviation", nargs='?',
                     help="organism name formatted per JGI's abbreviation. For "
-                         "example, 'Nematostella vectensis' is abbreviated by"
+                         "example, 'Nematostella vectensis' is abbreviated by "
                          "JGI as 'Nemve1'. The appropriate abbreviation may be "
                          "found by searching for the organism on JGI; the name "
                          "used in the URL of the 'Home' page for that organism "
                          "is the correct abbreviation. The full URL may also be "
-                         "used for this argument.")
+                         "used for this argument")
 parser.add_argument("-x", "--xml", nargs='?', const=1,
                     help="specify a local xml file for the query instead of "
-                         "retrieving a new copy from JGI.")
+                         "retrieving a new copy from JGI")
 parser.add_argument("-c", "--configure", action='store_true',
                     help="initiate configuration dialog to overwrite existing "
-                         "user/password configuration.")
+                         "user/password configuration")
 parser.add_argument("-s", "--syntax_help", action='store_true')
+parser.add_argument("-a", "--all_files", action='store_true',
+                    help="don't filter organism results by top "
+                         "categories and instead report all files listed by JGI "
+                         "for the query (work in progress)")
+parser.add_argument("-u", "--usage", action='store_true',
+                    help="print verbose usage information and exit")
 
 # /ARG PARSER
 
-# # Check arguments and exit if too short
-# if len(sys.argv) < 2:
-#     usage_blurb(empty_arg_blurb)
-#     sys.exit(0)
+# Check arguments and exit if too short
 if len(sys.argv) == 1:
     parser.print_help()
     sys.exit(1)
 
 args = parser.parse_args()
 
-# Check if user wants query syntax help
+# Check if user wants query help
 if args.syntax_help:
     sys.exit(select_blurb)
+if args.usage:
+    sys.exit(usage_example_blurb)
 
 # CONFIG
 
@@ -438,18 +537,30 @@ SCRIPT_HOME = os.path.dirname(SCRIPT_PATH)
 CONFIG_FILENAME = "jgi-query.config"
 CONFIG_FILEPATH = SCRIPT_HOME + "/{}".format(CONFIG_FILENAME)
 
+# Categories to store in default config file
+DEFAULT_CATEGORIES = ['ESTs',
+                      'EST Clusters',
+                      'Assembled scaffolds (unmasked)',
+                      'Assembled scaffolds (masked)',
+                      'Transcripts',
+                      'Genes',
+                      'CDS',
+                      'Proteins',
+                      'Additional Files']
+
 # Does config file exist?
 if os.path.isfile(CONFIG_FILEPATH) and not args.configure:  # use config file
-    user_info = read_config(CONFIG_FILEPATH)
+    config_info = read_config(CONFIG_FILEPATH)
 else:  # no config present or configure flag used; run config dialog
-    user_info = get_user_info()
-    make_config(CONFIG_FILEPATH, user_info)
+    config_info = get_user_info()
+    config_info["categories"] = DEFAULT_CATEGORIES
+    make_config(CONFIG_FILEPATH, config_info)
 
 # /CONFIG
 
 # Get user information for sign-on
-USER = user_info["user"]
-PASSWORD = user_info["password"]
+USER = config_info["user"]
+PASSWORD = config_info["password"]
 
 # Set curl login string using user and password as per https://goo.gl/oppZ2a
 LOGIN_STRING = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
@@ -457,7 +568,6 @@ LOGIN_STRING = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
                ' /dev/null'.format(USER, PASSWORD)
 
 # Get organism name for query
-# org_input = sys.argv[1]
 org_input = args.organism_abbreviation
 if not org_input:
     if args.configure:
@@ -478,54 +588,54 @@ org_url = ("http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism={
 # Get xml index of files, using existing local file or curl API
 # if "-xml" in sys.argv:
 if args.xml:
-    local_xml = True
+    local_xml = True  # global referenced by cleanExit()
 else:
     local_xml = False
 if not local_xml:  # retrieve from JGI
     xml_index_filename = '{}_jgi_index.xml'.format(organism)
     xml_address = ("curl {} -b cookies -c cookies > {}"
                    .format(org_url, xml_index_filename))
-    subprocess.call(LOGIN_STRING, shell=True)
+    try:  # fails if unable to contact server
+        subprocess.check_output(LOGIN_STRING, shell=True)
+    except subprocess.CalledProcessError as error:
+        cleanExit("Couldn't connect with server. Please check Internet connection "
+                  "and retry.")
     subprocess.call(xml_address, shell=True)
 else:
-    xml_arg = sys.argv.index("-xml") + 1
-    try:
-        xml_index_filename = sys.argv[xml_arg]
-    except IndexError:  # -xml flag used without argument
+    xml_arg = args.xml
+    if xml_arg == 1: # -xml flag used without argument
         xml_index_filename = '{}_jgi_index.xml'.format(organism)
-
+    else:
+        xml_index_filename = xml_arg
 
 # Parse xml file for content to download
+xml_root = None
 if os.path.getsize(xml_index_filename) == 0:  # happens if user and/or pw wrong
-    os.remove(CONFIG_FILEPATH)
+    # os.remove(CONFIG_FILEPATH)  # instruct user to overwrite with -c instead
     cleanExit("Invalid username/password combination.\n"
-              "Please restart script and re-enter user credentials.")
+              "Please restart script with flag '-c' to reconfigure credentials.")
 try:
-    xml_in = ET.parse(xml_index_filename)
+    xml_in = ET.ElementTree(file=xml_index_filename)
     xml_root = xml_in.getroot()
-except ET.ParseError:  # organism not found: xml file contains errors
+except ET.ParseError:  # organism not found/xml file contains errors
     cleanExit("Cannot parse XML file or no organism match found.\n"
               "Ensure remote file exists and has content at the following address:\n"
               "{}".format(org_url))
 
-# Build local file info
-# To do: put these in config file
-desired_categories = ['ESTs',
-                      'EST Clusters',
-                      'Assembled scaffolds (unmasked)',
-                      'Assembled scaffolds (masked)',
-                      'Transcripts',
-                      'Genes',
-                      'CDS',
-                      'Proteins',
-                      'Additional Files']
-file_list = get_file_list(xml_root, desired_categories)
+# Get categories from config (including possible user additions)
+DESIRED_CATEGORIES = config_info["categories"]
+
+# Choose between different XML parsers
+if args.all_files:  # user wants every file listed, not just those in <desired_categories>
+    file_list = get_file_list_all(xml_root)
+else:
+    file_list = get_file_list(xml_root, DESIRED_CATEGORIES)
 
 # Check if file has any categories of interest
 if not any(v["results"] for v in file_list.values()):
     print ("ERROR: no results found for '{}' in any of the following "
            "categories:\n---\n{}\n---"
-           .format(organism, "\n".join(desired_categories)))
+           .format(organism, "\n".join(DESIRED_CATEGORIES)))
     cleanExit()
 
 file_sizes = get_sizes(file_list, sizes_by_url={})
@@ -581,6 +691,7 @@ if unzip == 'y':
     print 'Finished unzipping all files.'
 
 # Clean up and exit
+# "cookies" file is always created
 keep_temp = raw_input("Keep temporary files ('{}' and 'cookies') (y/n)?\n>"
                       .format(xml_index_filename))
 if keep_temp.lower() not in "y, yes":
