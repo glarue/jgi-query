@@ -12,20 +12,25 @@ import textwrap
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 import argparse
+import tarfile
+import gzip
 
 # FUNCTIONS
 
-def usage_blurb(output):
-    print '*'*80
-    print
-    print textwrap.dedent(output)
-    print
-    print '*'*80
-
 def deindent(string):
+    """
+    Print left-justified triple-quoted text blocks
+
+    """
     print textwrap.dedent(string)
 
 def check_config(d, config_name):
+    """
+    Check filesystem for existence of configuration
+    file, and return the full path of config file
+    if found.
+
+    """
     files = os.listdir(d)
     if config_name in files:
         config_path = d + "/{}".format(config_name)
@@ -93,8 +98,8 @@ def make_config(config_path, config_info):
 
 def read_config(config):
     """
-    Reads "user" and "password" entries from config
-    file.
+    Reads "user", "password" and "categories" entries
+    from config file.
 
     """
     user, pw, categories = None, None, None
@@ -136,7 +141,7 @@ def read_config(config):
 #     return descriptors
 
 # NOW WITH RECURSION
-def recursive_hunt(parent, key, matches=None):  # original, unsafe: matches={}
+def recursive_hunt(parent, key, matches=None):
     """
     This moves through the XML tree and pulls
     out entries with name=<key>. Returns a
@@ -196,7 +201,8 @@ def get_file_list(root_file, categories):
                 uid += 1
     return descriptors
 
-# Work in progress - doesn't organize files particularly well
+# Work in progress - doesn't organize files particularly well due to
+# inconsistent parent nesting levels in certain XML files
 # Will get *all* files, instead of working from a list of categories
 def recursive_hunt_all(root, parents=None, matches=None, level=1, reset=True):
     """
@@ -312,12 +318,39 @@ def cleanExit(exit_message=None):
         print_message = ""
     sys.exit("{}Removing temp files and exiting".format(print_message))
 
-def unzip_files(local_file_list):
-    for e in local_file_list:
-        if re.search('(?<!tar)\.gz$', e):  # is only .gz
-            subprocess.call(['gunzip', e])
-        elif re.search('tar.gz$', e):
-            subprocess.call(['tar', '-zxvf', e])  # is .tar.gz
+def extract_file(file_path, keep_compressed=False):
+    """
+    Native Python file decompression for tar.gz and .gz files.
+
+    To do: implement .zip decompression
+
+    """
+    tar_pattern = 'tar.gz$'  # matches tar.gz
+    gz_pattern = '(?<!tar)\.gz$'  # excludes tar.gz
+    endings_map = {"tar": (tarfile, "r:gz", ".tar.gz"),
+                   "gz": (gzip, "rb", ".gz")
+                  }
+    if re.search(tar_pattern, file_path):
+        opener, mode, ext = endings_map["tar"]
+    elif re.search(gz_pattern, file_path):
+        opener, mode, ext = endings_map["gz"]
+    else:
+        raise ValueError("No decompression implemented for '{}'".format(file_path))
+    out_name = file_path.rstrip(ext)
+    with opener.open(file_path) as f, open(out_name, "wb") as out:
+        for l in f:
+            out.write(l)
+    if not keep_compressed:
+        os.remove(file_path)
+
+def decompress_files(local_file_list, keep_original=False):
+    """
+    Decompresses list of files, and deletes compressed
+    copies unless <keep_original> is True.
+
+    """
+    for f in local_file_list:
+        extract_file(f, keep_original)
 
 def print_data(data, org_name):
     """
@@ -428,7 +461,7 @@ you may use the -xml flag to avoid redownloading it:
 $ jgi-query.py -xml <your_xml_index>
 
 If the XML filename is omitted when using the -xml flag, it is assumed
-that the XML file is named '<org_name>_jgi_index.xml'"""
+that the XML file is named '<jgi_abbreviation>_jgi_index.xml'"""
 
 
 long_blurb = """
@@ -685,10 +718,14 @@ for url in urls_to_get:
 print 'Finished downloading all files.'
 
 # Kindly offer to unpack files
-unzip = raw_input('Unzip all downloaded files? (y/n): ')
-if unzip == 'y':
-    unzip_files(downloaded_files)
-    print 'Finished unzipping all files.'
+decompress = raw_input('Decompress all downloaded files? (y/n/k=decompress and keep original): ')
+if decompress != "n":
+    if decompress == "k":
+        keep_original = True
+    else:
+        keep_original = False
+    decompress_files(downloaded_files, keep_original)
+    print 'Finished decompressing all files.'
 
 # Clean up and exit
 # "cookies" file is always created
