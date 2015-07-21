@@ -729,7 +729,7 @@ if decompress != "n":
 
 # Clean up and exit
 # "cookies" file is always created
-keep_temp = raw_input("Keep temporary files ('{}' and 'cookies') (y/n)?\n>"
+keep_temp = raw_input("Keep temporary files ('{}' and 'cookies')? (y/n): "
                       .format(xml_index_filename))
 if keep_temp.lower() not in "y, yes":
     cleanExit()
