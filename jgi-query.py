@@ -699,7 +699,7 @@ else:
     unit = "GB"
 size_string = "{} {}".format(adjusted, unit)
 print ("Total download size of selected files: {}".format(size_string))
-download = raw_input("Continue? (y/n)")
+download = raw_input("Continue? (y/n): ")
 if download.lower() != "y":
     cleanExit("ABORTING DOWNLOAD")
 
