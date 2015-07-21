@@ -12,7 +12,7 @@ A command-line tool for querying and downloading from the [Joint Genome Institut
 3. From the command line, run the script with the command `python jgi-query.py` to show usage information and further instructions
 
 ### Author notes
-This is a somewhat better-commented (emphasis on "somewhat") version of a script I wrote for grabbing various datasets from a headless Linux server. For a lot of my lab's bioinformatics work, we don't store/manipulate data on our local computers, and I was not able to find a good tool that allowed for convenient queries of the JGI database without additional software.
+This is a somewhat better-commented (emphasis on "somewhat") version of a script I wrote for grabbing various datasets using a headless Linux server. For a lot of my lab's bioinformatics work, we don't store/manipulate data on our local computers, and I was not able to find a good tool that allowed for convenient queries of the JGI database without additional software.
 
 JGI also no longer allows simple downloading of many of their datasets (via `wget`, for example), which is another reason behind the creation of this script.
 
