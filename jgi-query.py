@@ -528,7 +528,7 @@ parser.add_argument("organism_abbreviation", nargs='?',
                          "example, 'Nematostella vectensis' is abbreviated by "
                          "JGI as 'Nemve1'. The appropriate abbreviation may be "
                          "found by searching for the organism on JGI; the name "
-                         "used in the URL of the 'Home' page for that organism "
+                         "used in the URL of the 'Info' page for that organism "
                          "is the correct abbreviation. The full URL may also be "
                          "used for this argument")
 parser.add_argument("-x", "--xml", nargs='?', const=1,
