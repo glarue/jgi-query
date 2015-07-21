@@ -1,5 +1,5 @@
 # jgi-query
-A command-line tool for querying and downloading from the [Joint Genome Institute (JGI)](http://genome.jgi-psf.org/) online database. Useful for accessing JGI data from command-line-only resources such as remote servers, or as a lightweight alternative to JGI's other GUI-based download tools.
+A command-line tool for querying and downloading from the [Joint Genome Institute (JGI)](http://genome.jgi-psf.org/) online database. Useful for accessing JGI data from command-line-only resources such as remote servers, or as a lightweight alternative to JGI's other [GUI-based download tools](http://genome.jgi-psf.org/help/download.jsf).
 
 ### Dependencies
 - A [user account with JGI](http://contacts.jgi-psf.org/registration/new) (free)
