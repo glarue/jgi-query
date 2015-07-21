@@ -688,16 +688,14 @@ for k, v in sorted(ids_dict.iteritems()):
         urls_to_get.append(url_dict[k][i])
 
 # Calculate and display total size of selected data
-total_size = 0
-for url in urls_to_get:
-    total_size += file_sizes[url]
-adjusted = round(total_size/1e6, 2)  # bytes to MB
+total_size = sum([file_sizes[url] for url in urls_to_get])
+adjusted = total_size/1e6  # bytes to MB
 if adjusted < 1000:
     unit = "MB"
 else:
-    adjusted = round(adjusted/1000, 2)
+    adjusted /= 1000
     unit = "GB"
-size_string = "{} {}".format(adjusted, unit)
+size_string = "{:.2f} {}".format(adjusted, unit)
 print ("Total download size of selected files: {}".format(size_string))
 download = raw_input("Continue? (y/n): ")
 if download.lower() != "y":
