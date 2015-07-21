@@ -23,15 +23,7 @@ JGI uses a [cURL-based API](https://docs.google.com/document/d/1UXovE52y1ab8dZVa
 
 In brief, `jgi-query.py` begins by using cURL to grab an XML file for the query text. The XML file describes all of the available files and their parent categories. For example, the file for *Aureobasidium subglaciale* (JGI abbreviation "Aurpu_var_sub1") begins:
 
-'''xml
-<organismDownloads name="Aurpu_var_sub1">
-  <folder name="Files">
-    <folder name="ESTs and EST Clusters">
-      <folder name="EST Clusters">
-        <file label="Aureobasidium pullulans var. subglaciale EXF-2481" filename="Aurpu_var_sub1_EST_20120515_cluster_consensi.fasta.gz" size="9 MB" sizeInBytes="9454396" timestamp="Tue May 15 12:55:52 PDT 2012" url="/Aurpu_var_sub1/download/Aurpu_var_sub1_EST_20120515_cluster_consensi.fasta.gz" project="403631" md5="82b9e941fe2096d247cce069689979f0"/>
-      </folder>
-    </folder>
-'''
+![Aurpu_var_sub1_xml_example](http://i.imgur.com/4nImnxx.png)
 
 `jgi-query.py` will parse the XML file to find entries with a `filename` attribute and, depending on command-line arguments, a parent category from the list of categories in `jgi-query.config`. It then displays the available files with minimal metadata, and prompts the user to enter their selection.
 
