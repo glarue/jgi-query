@@ -16,7 +16,7 @@ This is a somewhat better-commented (emphasis on "somewhat") version of a script
 
 JGI also no longer allows simple downloading of many of their datasets (via `wget`, for example), which is another reason behind the creation of this script.
 
-I highly encourage anyone with more advanced Python skills (read: almost everyone) to fork and submit pull requests. I am happy if this can help even a single other person access data more quickly.
+I highly encourage anyone with more advanced Python skills (read: almost everyone) to fork and submit pull requests, and hope that someone else finds it useful.
 
 ### General overview
 JGI uses a [cURL-based API](https://docs.google.com/document/d/1UXovE52y1ab8dZVa-LYNJtgUVgK55nHSQR3HQEJJ5-A/view) to provide information/download links to files in their database.
