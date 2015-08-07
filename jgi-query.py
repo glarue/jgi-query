@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 """
 Retrieves files/directories from JGI through the curl api.
