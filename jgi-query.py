@@ -22,7 +22,7 @@ def deindent(string):
     Print left-justified triple-quoted text blocks
 
     """
-    print textwrap.dedent(string)
+    print(textwrap.dedent(string))
 
 def check_config(d, config_name):
     """
@@ -61,17 +61,17 @@ def get_user_info():
     deindent(blurb)
     user_query = "JGI account username/email (or 'q' to quit): "
     pw_query = "JGI account password (or 'q' to quit): "
-    user = raw_input(user_query)
+    user = input(user_query)
     if user == "q":
         sys.exit("Exiting now.")
-    pw = raw_input(pw_query)
+    pw = input(pw_query)
     if pw == "q":
         sys.exit("Exiting now.")
     input_blurb = ("Proceed with USER='{}', PASSWORD='{}' to configure script?\n"
                    "([y]es, [n]o, [r]estart): ".format(user, pw))
     user_info = {"user": user, "password": pw}
     while True:  # catch invalid responses
-        choice = raw_input(input_blurb)
+        choice = input(input_blurb)
         if choice.lower() == "r":
             user_info = get_user_info()
             return user_info
@@ -179,12 +179,12 @@ def get_file_list(root_file, categories):
     for c in sorted(categories):
         category_id += 1
         found = recursive_hunt(root_file, c, matches={})  # matches={} important!
-        if not found.values():
+        if not list(found.values()):
             continue
         descriptors[c] = defaultdict(dict)
         descriptors[c]["catID"] = category_id
         uid = 1
-        for parent, children in sorted(found.iteritems()):
+        for parent, children in sorted(found.items()):
             descriptors[c]["results"][parent] = defaultdict(dict)
             results = descriptors[c]["results"][parent]
             children = [e for e in children if 'filename' in e]
@@ -238,7 +238,7 @@ def format_found(d):
 
     """
     output = {}
-    for p, c in sorted(d.iteritems()):
+    for p, c in sorted(d.items()):
         layers = [e for e in p.split(":") if e]
         top = layers[-1]
         if len(layers) < 2:
@@ -261,16 +261,16 @@ def get_file_list_all(root_file):
     display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes']
     found = recursive_hunt_all(root_file, parents=[], matches={})
     found = format_found(found)
-    if not found.values():
+    if not list(found.values()):
         return None
     category_id = 0
-    for category, sub_cat in sorted(found.iteritems()):
+    for category, sub_cat in sorted(found.items()):
         c = category
         category_id += 1
         descriptors[c] = defaultdict(dict)
         descriptors[c]["catID"] = category_id
         uid = 1
-        for parent, children in sorted(sub_cat.iteritems()):
+        for parent, children in sorted(sub_cat.items()):
             descriptors[c]["results"][parent] = defaultdict(dict)
             results = descriptors[c]["results"][parent]
             children = [e for e in children if 'filename' in e]
@@ -293,7 +293,7 @@ def get_sizes(d, sizes_by_url=None):  # original, unsafe: sizes_by_url={}
     output of get_file_list()
 
     """
-    for k, v in d.iteritems():
+    for k, v in d.items():
         if isinstance(v, dict):
             if 'url' in v:
                 address = v['url']
@@ -359,35 +359,35 @@ def print_data(data, org_name):
     in desired categories.
 
     """
-    print "QUERY RESULTS FOR '{}'\n".format(org_name)
+    print("QUERY RESULTS FOR '{}'\n".format(org_name))
     dict_to_get = {}
-    for query_cat, v in sorted(data.iteritems(), key=lambda (k, v): v["catID"]):
+    for query_cat, v in sorted(iter(data.items()), key=lambda k_v: k_v[1]["catID"]):
         if not v["results"]:
             continue
         catID = v["catID"]
         dict_to_get[catID] = {}
-        print " {}: {} ".format(catID, query_cat).center(80, "=")
+        print(" {}: {} ".format(catID, query_cat).center(80, "="))
         results = v["results"]
-        for sub_cat, items in sorted(results.iteritems(),
-                                     key=lambda (sub_cat, items): items.items()[0]):
-            print "# {}:".format(sub_cat)
-            for index, i in sorted(items.iteritems()):
+        for sub_cat, items in sorted(iter(results.items()),
+                                     key=lambda sub_cat_items: sub_cat_items[1].sub_cat_items[1]()[0]):
+            print("# {}:".format(sub_cat))
+            for index, i in sorted(items.items()):
                 dict_to_get[catID][index] = i["url"]
                 print_index = "[{}]".format(str(index))
                 size = "({})".format(i["size"])
                 filename = i["filename"]
                 margin = 80 - (len(size) + len(print_index))
                 file_info = filename.center(margin, "-")
-                print "".join([print_index, file_info, size])
-            print  # padding
+                print("".join([print_index, file_info, size]))
+            print()  # padding
     return dict_to_get
 
 def get_user_choice():
-    choice = raw_input("Enter file selection ('q' to quit, 'usage' to review syntax):\n>")
+    choice = input("Enter file selection ('q' to quit, 'usage' to review syntax):\n>")
     if choice == "usage":
-        print
-        print select_blurb
-        print
+        print()
+        print(select_blurb)
+        print()
         return get_user_choice()
     elif choice.lower() in ("q", "quit", "exit"):
         cleanExit()
@@ -416,10 +416,10 @@ def parse_selection(user_input):
                 cat_list.append(int(i))  # if it's already an integer
             except ValueError:
                 try:
-                    start, stop = map(int, i.split("-"))
+                    start, stop = list(map(int, i.split("-")))
                 except:
                     cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(i))
-                add_range = range(start, stop + 1)
+                add_range = list(range(start, stop + 1))
                 for e in add_range:
                     cat_list.append(e)
     return selections
@@ -665,17 +665,17 @@ else:
     file_list = get_file_list(xml_root, DESIRED_CATEGORIES)
 
 # Check if file has any categories of interest
-if not any(v["results"] for v in file_list.values()):
-    print ("ERROR: no results found for '{}' in any of the following "
+if not any(v["results"] for v in list(file_list.values())):
+    print(("ERROR: no results found for '{}' in any of the following "
            "categories:\n---\n{}\n---"
-           .format(organism, "\n".join(DESIRED_CATEGORIES)))
+           .format(organism, "\n".join(DESIRED_CATEGORIES))))
     cleanExit()
 
 file_sizes = get_sizes(file_list, sizes_by_url={})
 
 # Ask user which files to download from xml
-print long_blurb
-print  # padding
+print(long_blurb)
+print()  # padding
 url_dict = print_data(file_list, organism)
 
 user_choice = get_user_choice()
@@ -683,7 +683,7 @@ user_choice = get_user_choice()
 # Retrieve user-selected file urls from dict
 ids_dict = parse_selection(user_choice)
 urls_to_get = []
-for k, v in sorted(ids_dict.iteritems()):
+for k, v in sorted(ids_dict.items()):
     for i in v:
         urls_to_get.append(url_dict[k][i])
 
@@ -696,8 +696,8 @@ else:
     adjusted /= 1000
     unit = "GB"
 size_string = "{:.2f} {}".format(adjusted, unit)
-print ("Total download size of selected files: {}".format(size_string))
-download = raw_input("Continue? (y/n): ")
+print(("Total download size of selected files: {}".format(size_string)))
+download = input("Continue? (y/n): ")
 if download.lower() != "y":
     cleanExit("ABORTING DOWNLOAD")
 
@@ -706,32 +706,32 @@ downloaded_files = []
 for url in urls_to_get:
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
-    print 'Downloading \'{}\'\n'.format(filename)
+    print('Downloading \'{}\'\n'.format(filename))
     download_command = 'curl http://genome.jgi.doe.gov{} -b cookies'\
                        ' -c cookies > {}'.format(url, filename)
 # The next line doesn't appear to be needed to refresh the cookies.
 #    subprocess.call(login, shell=True)
     subprocess.call(download_command, shell=True)
 
-print 'Finished downloading all files.'
+print('Finished downloading all files.')
 
 # Kindly offer to unpack files
-decompress = raw_input('Decompress all downloaded files? (y/n/k=decompress and keep original): ')
+decompress = input('Decompress all downloaded files? (y/n/k=decompress and keep original): ')
 if decompress != "n":
     if decompress == "k":
         keep_original = True
     else:
         keep_original = False
     decompress_files(downloaded_files, keep_original)
-    print 'Finished decompressing all files.'
+    print('Finished decompressing all files.')
 
 # Clean up and exit
 # "cookies" file is always created
-keep_temp = raw_input("Keep temporary files ('{}' and 'cookies')? (y/n): "
+keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
                       .format(xml_index_filename))
 if keep_temp.lower() not in "y, yes":
     cleanExit()
 else:
-    print 'Leaving temporary files intact and exiting.'
+    print('Leaving temporary files intact and exiting.')
 
 sys.exit(0)
