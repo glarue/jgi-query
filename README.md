@@ -8,7 +8,7 @@ A command-line tool for querying and downloading from the [Joint Genome Institut
 
 ### Installation
 1. Download `jgi-query.py`
-2. Ensure that you're running the correct version of Python with `python --version`. If this reports Python 3.x, run the script using `python2` instead of `python`
+2. Ensure that you're running the correct version of Python with `python --version`. If this reports Python 2.x, run the script using `python3` instead of `python`
 3. From the command line, run the script with the command `python jgi-query.py` to show usage information and further instructions
 
 ### Author notes
