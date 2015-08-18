@@ -369,7 +369,7 @@ def print_data(data, org_name):
         print(" {}: {} ".format(catID, query_cat).center(80, "="))
         results = v["results"]
         for sub_cat, items in sorted(iter(results.items()),
-                                     key=lambda sub_cat_items: sub_cat_items[1].sub_cat_items[1]()[0]):
+                                     key=lambda sub_cat_items: (sub_cat_items[0], sub_cat_items[1])):
             print("# {}:".format(sub_cat))
             for index, i in sorted(items.items()):
                 dict_to_get[catID][index] = i["url"]
