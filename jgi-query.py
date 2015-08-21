@@ -467,9 +467,9 @@ return a list of possible files for downloading.
 * This script depends upon cURL - it can be downloaded here:
 http://curl.haxx.se/
 
-Usage /////////////////////////////////////////////////////////////////////////
+# USAGE ///////////////////////////////////////////////////////////////////////
 
-$ jgi-query.py [<jgi_address>, <jgi_abbreviation>] [[-xml [<your_xml>]], -a]
+$ jgi-query.py [<jgi_address>, <jgi_abbreviation>] [[-xml [<your_xml>]], -f]
 
 To get <jgi_address>, go to: http://genome.jgi.doe.gov/ and search for your
 species of interest. Click through until you are at the "Info" page. For
@@ -493,7 +493,9 @@ you may use the -xml flag to avoid redownloading it:
 $ jgi-query.py -xml <your_xml_index>
 
 If the XML filename is omitted when using the -xml flag, it is assumed
-that the XML file is named '<jgi_abbreviation>_jgi_index.xml'"""
+that the XML file is named '<jgi_abbreviation>_jgi_index.xml'
+# /USAGE //////////////////////////////////////////////////////////////////////
+"""
 
 
 long_blurb = """
@@ -570,9 +572,9 @@ parser.add_argument("-c", "--configure", action='store_true',
                     help="initiate configuration dialog to overwrite existing "
                          "user/password configuration")
 parser.add_argument("-s", "--syntax_help", action='store_true')
-parser.add_argument("-a", "--all_files", action='store_true',
-                    help="don't filter organism results by top "
-                         "categories and instead report all files listed by JGI "
+parser.add_argument("-f", "--filter_files", action='store_true',
+                    help="filter organism results by top "
+                         "categories instead of reporting all files listed by JGI "
                          "for the query (work in progress)")
 parser.add_argument("-u", "--usage", action='store_true',
                     help="print verbose usage information and exit")
@@ -691,10 +693,10 @@ except ET.ParseError:  # organism not found/xml file contains errors
 DESIRED_CATEGORIES = config_info["categories"]
 
 # Choose between different XML parsers
-if args.all_files:  # user wants every file listed, not just those in <desired_categories>
-    file_list = get_file_list_all(xml_root)
-else:
+if args.filter_files:  # user wants only those files in <desired_categories>
     file_list = get_file_list(xml_root, DESIRED_CATEGORIES)
+else:  # return all files found
+    file_list = get_file_list_all(xml_root)
 
 # Check if file has any categories of interest
 if not any(v["results"] for v in list(file_list.values())):
