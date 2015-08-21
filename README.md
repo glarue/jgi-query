@@ -31,6 +31,7 @@ Main file categories in the report are numbered, as are files within each catego
 
 ### Sample output for _Nematostella vectensis_ (JGI abbreviation 'Nemve1')
 ```bash
+glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $ jgi-query.py Nemve1
 # USAGE ///////////////////////////////////////////////////////////////////////
 
 # Select one or more of the following to download, using the
