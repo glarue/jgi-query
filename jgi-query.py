@@ -372,7 +372,7 @@ def print_data(data, org_name):
     in desired categories.
 
     """
-    print("QUERY RESULTS FOR '{}'\n".format(org_name))
+    print("\nQUERY RESULTS FOR '{}'\n".format(org_name))
     dict_to_get = {}
     for query_cat, v in sorted(iter(data.items()), key=lambda k_v: k_v[1]["catID"]):
         if not v["results"]:
@@ -651,6 +651,9 @@ except AttributeError:  # not in address form, assume string is organism name
 org_url = ("http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism={}"
            .format(organism))
 
+# Display sample usage
+print(long_blurb)
+print()  # padding
 
 # Get xml index of files, using existing local file or curl API
 # if "-xml" in sys.argv:
@@ -708,8 +711,6 @@ if not any(v["results"] for v in list(file_list.values())):
 file_sizes = get_sizes(file_list, sizes_by_url={})
 
 # Ask user which files to download from xml
-print(long_blurb)
-print()  # padding
 url_dict = print_data(file_list, organism)
 
 user_choice = get_user_choice()
