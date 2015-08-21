@@ -14,6 +14,7 @@ from collections import defaultdict
 import argparse
 import tarfile
 import gzip
+import time
 
 # FUNCTIONS
 
@@ -174,7 +175,7 @@ def get_file_list(root_file, categories):
 
     """
     descriptors = {}
-    display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes']
+    display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes', 'timestamp']
     category_id = 0
     for c in sorted(categories):
         category_id += 1
@@ -258,7 +259,7 @@ def get_file_list_all(root_file):
 
     """
     descriptors = {}
-    display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes']
+    display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes', 'timestamp']
     found = recursive_hunt_all(root_file, parents=[], matches={})
     found = format_found(found)
     if not list(found.values()):
@@ -287,7 +288,7 @@ def get_file_list_all(root_file):
                 uid += 1
     return descriptors
 
-def get_sizes(d, sizes_by_url=None):  # original, unsafe: sizes_by_url={}
+def get_sizes(d, sizes_by_url=None):
     """
     Builds a dictionary of url:sizes from
     output of get_file_list()
@@ -352,6 +353,18 @@ def decompress_files(local_file_list, keep_original=False):
     for f in local_file_list:
         extract_file(f, keep_original)
 
+def shorten_timestamp(time_string):
+    """
+    Parses the timestamp string from an XML document
+    of the form "Thu Feb 27 16:38:54 PST 2014"
+    and returns a string of the form "02/2014".
+
+    """
+    time_info = time.strptime(time_string, "%a %b %d %H:%M:%S %Z %Y")
+    # month_year = "{:02d}/{}".format(time_info.tm_mon, time_info.tm_year)
+    year = str(time_info.tm_year)
+    return year
+
 def print_data(data, org_name):
     """
     Prints info from dict. <data> in a specific format.
@@ -373,12 +386,13 @@ def print_data(data, org_name):
             print("# {}:".format(sub_cat))
             for index, i in sorted(items.items()):
                 dict_to_get[catID][index] = i["url"]
-                print_index = "[{}]".format(str(index))
-                size = "({})".format(i["size"])
+                print_index = "[{}] ".format(str(index))
+                date = shorten_timestamp(i["timestamp"])
+                size_date = "[{}|{}]".format(i["size"], date)
                 filename = i["filename"]
-                margin = 80 - (len(size) + len(print_index))
-                file_info = filename.center(margin, "-")
-                print("".join([print_index, file_info, size]))
+                margin = 80 - (len(size_date) + len(print_index))
+                file_info = filename.ljust(margin, "-")
+                print("".join([print_index, file_info, size_date]))
             print()  # padding
     return dict_to_get
 
