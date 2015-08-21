@@ -29,7 +29,7 @@ In brief, `jgi-query.py` begins by using cURL to grab an XML file for the query 
 
 Main file categories in the report are numbered, as are files within each category. The selection syntax is `category_number`:`file_selection`, where `file_selection` is either a comma-separated list (e.g. `file1`, `file2`) or a contiguous range (e.g. `file1`-`file4`). For multiple parent categories and associated files, category/file list groupings are linked with semicolons (e.g. `category1`:`file1`,`file2`;`category2`:`file5`-`file8`).
 
-### Sample output for _Nematostella vectensis_ (Nemve1, using the "all" flag)
+### Sample output for _Nematostella vectensis_ (JGI abbreviation 'Nemve1')
 ```bash
 # USAGE ///////////////////////////////////////////////////////////////////////
 
