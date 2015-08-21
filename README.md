@@ -32,6 +32,7 @@ Main file categories in the report are numbered, as are files within each catego
 ### Sample output for _Nematostella vectensis_ (JGI abbreviation 'Nemve1')
 ```bash
 glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $ jgi-query.py Nemve1
+
 # USAGE ///////////////////////////////////////////////////////////////////////
 
 # Select one or more of the following to download, using the
@@ -43,36 +44,35 @@ glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $ jgi-query.py
 
 # For example, consider the following results:
 
-
-=================================== 6: Genes ===================================
+=================================== 2: Genes ===================================
 # All models, Filtered and Not:
-[1]-----------------------Nemve1.AllModels.gff.gz------------------------(20 MB)
+[1] Nemve1.AllModels.gff.gz-----------------------------------------[20 MB|2012]
 
 # Filtered Models ("best"):
-[2]---------------------Nemve1.FilteredModels1.gff.gz---------------------(3 MB)
-[3]----------------------Nvectensis_19_PAC2_0.GFF3.gz---------------------(2 MB)
+[2] Nemve1.FilteredModels1.gff.gz------------------------------------[3 MB|2012]
+[3] Nvectensis_19_PAC2_0.GFF3.gz-------------------------------------[2 MB|2012]
 
-================================ 7: Transcripts ================================
+================================= 3: Proteins ==================================
 # All models, Filtered and Not:
-[1]-----------------transcripts.Nemve1AllModels.fasta.gz-----------------(55 MB)
+[1] proteins.Nemve1AllModels.fasta.gz-------------------------------[29 MB|2012]
 
 # Filtered Models ("best"):
-[2]---------------transcripts.Nemve1FilteredModels1.fasta.gz--------------(8 MB)
+[2] proteins.Nemve1FilteredModels1.fasta.gz--------------------------[5 MB|2012]
 
+---
 
-# To retrieve items 1 and 2 from 'Genes' and 2 from 'Transcripts', the query
-# should be: '6:1,2; 7:2'
+# To retrieve items 1 and 2 from 'Genes' and 2 from 'Proteins', the query
+# would be: '2:1,2;3:2'
 
 # /USAGE //////////////////////////////////////////////////////////////////////
 
 
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-100   197    0   152  100    45    361    106 --:--:-- --:--:-- --:--:--   641
+100   197    0   152  100    45    273     80 --:--:-- --:--:-- --:--:--   447
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-100  4012    0  4012    0     0   7355      0 --:--:-- --:--:-- --:--:--  7760
-
+100  4012    0  4012    0     0   3976      0 --:--:--  0:00:01 --:--:--  6917
 
 QUERY RESULTS FOR 'Nemve1'
 
@@ -108,18 +108,24 @@ QUERY RESULTS FOR 'Nemve1'
 [2] transcripts.Nemve1FilteredModels1.fasta.gz-----------------------[8 MB|2012]
 
 Enter file selection ('q' to quit, 'usage' to review syntax):
->3:2
-Total download size of selected files: 5.33 MB
+>2:2;4:1
+Total download size of selected files: 61.51 MB
 Continue? (y/n): y
-Downloading 'proteins.Nemve1FilteredModels1.fasta.gz'
+Downloading 'Nemve1.FilteredModels1.gff.gz'
 
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-100 5206k  100 5206k    0     0  1737k      0  0:00:02  0:00:02 --:--:-- 1753k
+100 3078k  100 3078k    0     0  1256k      0  0:00:02  0:00:02 --:--:-- 1472k
+Downloading 'transcripts.Nemve1AllModels.fasta.gz'
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 55.6M  100 55.6M    0     0  1807k      0  0:00:31  0:00:31 --:--:-- 1702k
 Finished downloading all files.
 Decompress all downloaded files? (y/n/k=decompress and keep original): y
 Finished decompressing all files.
 Keep temporary files ('Nemve1_jgi_index.xml' and 'cookies')? (y/n): n
 Removing temp files and exiting
+glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $ 
 ```
 
