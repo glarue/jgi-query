@@ -724,11 +724,15 @@ for k, v in sorted(ids_dict.items()):
 
 # Calculate and display total size of selected data
 total_size = sum([file_sizes[url] for url in urls_to_get])
-adjusted = total_size/1e6  # bytes to MB
-if adjusted < 1000:
+# adjusted = total_size/1e6  # bytes to MB
+adjusted = total_size/(1024 * 1024)  # bytes to MB
+if adjusted < 1:
+    adjusted = total_size / 1024
+    unit = "KB"
+elif adjusted < 1024:
     unit = "MB"
 else:
-    adjusted /= 1000
+    adjusted /= 1024
     unit = "GB"
 size_string = "{:.2f} {}".format(adjusted, unit)
 print(("Total download size of selected files: {}".format(size_string)))
