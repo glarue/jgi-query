@@ -31,14 +31,6 @@ Main file categories in the report are numbered, as are files within each catego
 
 ### Sample output for _Nematostella vectensis_ (Nemve1, using the "all" flag)
 ```bash
-glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $ jgi-query.py Nemve1 -a
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   197    0   152  100    45    399    118 --:--:-- --:--:-- --:--:--   425
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100  4012    0  4012    0     0   8284      0 --:--:-- --:--:-- --:--:--  9056
-
 # USAGE ///////////////////////////////////////////////////////////////////////
 
 # Select one or more of the following to download, using the
@@ -71,6 +63,14 @@ glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $ jgi-query.py
 # should be: '6:1,2; 7:2'
 
 # /USAGE //////////////////////////////////////////////////////////////////////
+
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   197    0   152  100    45    361    106 --:--:-- --:--:-- --:--:--   641
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  4012    0  4012    0     0   7355      0 --:--:-- --:--:-- --:--:--  7760
 
 
 QUERY RESULTS FOR 'Nemve1'
