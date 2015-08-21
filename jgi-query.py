@@ -424,6 +424,24 @@ def parse_selection(user_input):
                     cat_list.append(e)
     return selections
 
+def url_format_checker(u):
+    """
+    Checks the URL string and corrects it to the JGI Genome
+    Portal format in cases where it is differently formatted,
+    e.g. links listed in Phytozome.
+
+    Such malformed links are prepended with a string which breaks
+    normal parsing, for example:
+    "/ext-api/downloads/get_tape_file?blocking=true&url=" is
+    prepended to the standard Genome Portal URL format for (all?)
+    Phytozome links and needs to be removed for cURL to use it.
+
+    """
+    if "url=" in u:
+        u = u.split("url=")[-1]  # take the bit after the prepended string
+    return u
+
+
 # /FUNCTIONS
 
 # BLURBS
@@ -704,6 +722,8 @@ if download.lower() != "y":
 # Run curl commands to retrieve selected files
 downloaded_files = []
 for url in urls_to_get:
+    # Make sure the URL format conforms to the Genome Portal format
+    url = url_format_checker(url)
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
     print('Downloading \'{}\'\n'.format(filename))
