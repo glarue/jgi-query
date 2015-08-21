@@ -510,25 +510,25 @@ long_blurb = """
 
 # For example, consider the following results:
 
-
-=================================== 6: Genes ===================================
+=================================== 2: Genes ===================================
 # All models, Filtered and Not:
-[1]-----------------------Nemve1.AllModels.gff.gz------------------------(20 MB)
+[1] Nemve1.AllModels.gff.gz-----------------------------------------[20 MB|2012]
 
 # Filtered Models ("best"):
-[2]---------------------Nemve1.FilteredModels1.gff.gz---------------------(3 MB)
-[3]----------------------Nvectensis_19_PAC2_0.GFF3.gz---------------------(2 MB)
+[2] Nemve1.FilteredModels1.gff.gz------------------------------------[3 MB|2012]
+[3] Nvectensis_19_PAC2_0.GFF3.gz-------------------------------------[2 MB|2012]
 
-================================ 7: Transcripts ================================
+================================= 3: Proteins ==================================
 # All models, Filtered and Not:
-[1]-----------------transcripts.Nemve1AllModels.fasta.gz-----------------(55 MB)
+[1] proteins.Nemve1AllModels.fasta.gz-------------------------------[29 MB|2012]
 
 # Filtered Models ("best"):
-[2]---------------transcripts.Nemve1FilteredModels1.fasta.gz--------------(8 MB)
+[2] proteins.Nemve1FilteredModels1.fasta.gz--------------------------[5 MB|2012]
 
+---
 
-# To retrieve items 1 and 2 from 'Genes' and 2 from 'Transcripts', the query
-# should be: '6:1,2; 7:2'
+# To retrieve items 1 and 2 from 'Genes' and 2 from 'Proteins', the query
+# would be: '2:1,2;3:2'
 
 # /USAGE //////////////////////////////////////////////////////////////////////
 """
@@ -544,7 +544,7 @@ Indices (<i>) may be a mixture of comma-separated values and hyphen-
 separated ranges.
 
 Example: '3:4,5; 7:1-10,13' will select elements 4 and 5 from category 3, and
-1-10, 13 from category 7.
+1-10 plus 13 from category 7.
 
 # /SYNTAX /////////////////////////////////////////////////////////////////////
 """
