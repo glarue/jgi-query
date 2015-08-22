@@ -122,118 +122,34 @@ def read_config(config):
 
 # /CONFIG
 
-# # Deprecated method, kept as reference
-# def file_list(categories):
-#     descriptors = {}
-#     uid = 0
-#     for c in categories:
-#         descriptors[c] = {}
-#         for e in root.findall(".//file/..[@name='{}']".format(c)):
-#             for i in e:
-#                 try:
-#                     descriptors[c][uid]
-#                 except KeyError:
-#                     descriptors[c][uid] = {}
-#                 ids = i.attrib
-#                 descriptors[c][uid]['filename'] = ids['filename']
-#                 descriptors[c][uid]['url'] = ids['url']
-#                 descriptors[c][uid]['size'] = ids['size']
-#                 uid += 1
-#     return descriptors
-
-# NOW WITH RECURSION
-def recursive_hunt(parent, key, matches=None):
-    """
-    This moves through the XML tree and pulls
-    out entries with name=<key>. Returns a
-    dict of matches with parent name as key.
-
-    """
-    for child in parent.getchildren():
-        # print child.attrib['name']
-        try:
-            if child.attrib['name'] == key:
-                parent_name = parent.attrib['name']
-                for grandchild in child.getchildren():
-                    if 'filename' not in grandchild.attrib:
-                        continue
-                    try:
-                        matches[parent_name].append(grandchild.attrib)
-                    except KeyError:
-                        matches[parent_name] = [grandchild.attrib]
-            else:
-                # parent_name = None
-                recursive_hunt(child, key, matches)
-        except KeyError:
-            return matches
-    return matches
-
-def get_file_list(root_file, categories):
-    """
-    Moves through the xml document <root_file> and returns information
-    about matches to elements in <categories>.
-
-    """
-    descriptors = {}
-    display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes', 'timestamp']
-    category_id = 0
-    for c in sorted(categories):
-        category_id += 1
-        found = recursive_hunt(root_file, c, matches={})  # matches={} important!
-        if not list(found.values()):
-            continue
-        descriptors[c] = defaultdict(dict)
-        descriptors[c]["catID"] = category_id
-        uid = 1
-        for parent, children in sorted(found.items()):
-            descriptors[c]["results"][parent] = defaultdict(dict)
-            results = descriptors[c]["results"][parent]
-            children = [e for e in children if 'filename' in e]
-            for child in sorted(children, key=lambda x: x['filename']):
-                try:
-                    results[uid]
-                except KeyError:
-                    results[uid] = {}
-                for dc in display_cats:
-                    try:
-                        results[uid][dc] = child[dc]
-                    except KeyError:
-                        continue
-                uid += 1
-    return descriptors
-
-# Work in progress - doesn't organize files particularly well due to
-# inconsistent parent nesting levels in certain XML files
-# Will get *all* files, instead of working from a list of categories
-def recursive_hunt_all(root, parents=None, matches=None, level=1, reset=True):
+def xml_hunt(xml_file):
     """
     Gets list of all XML entries with "filename" attribute,
     and returns a dictionary of the file attributes keyed
     by a ":"-joined string of parent names.
 
     """
-    for c in root.getchildren():
-        base_level = level
-        if "filename" not in c.attrib:
-            try:  # if name, is one of parents
-                parents.append(c.attrib['name'])
-            except KeyError:
-                pass
-            recursive_hunt_all(c, parents, matches, level + 1, reset=True)
-        else:
-            reset = False
+    root = ET.iterparse(xml_file, events=("start", "end"))
+    parents = []
+    matches = {}
+    for event, element in root:
+        if element.tag not in ["folder", "file"]:  # skip topmost categories
+            continue
+        if element.tag == "folder":
+            if event == "start":  # add to parents
+                parents.append(element.attrib["name"])
+            elif event == "end":  # strip from parents
+                del parents[-1]
+            continue
+        if event == "start" and element.tag == "file":
             parent_string = ":".join(parents)
             try:
-                matches[parent_string].append(c.attrib)
+                matches[parent_string].append(element.attrib)
             except KeyError:
-                matches[parent_string] = [c.attrib]
-        if reset:  # only true if out of files block
-            level -= 1
-            parents = parents[:level]
-        level = base_level  # this gets the correct levels of all folders
+                matches[parent_string] = [element.attrib]
     return matches
 
-def format_found(d):
+def format_found(d, filter_found=False):
     """
     Reformats the output from recursive_hunt_all()
 
@@ -241,27 +157,30 @@ def format_found(d):
     output = {}
     for p, c in sorted(d.items()):
         layers = [e for e in p.split(":") if e]
-        top = layers[-1]
-        if len(layers) < 2:
-            parent = top
+        if filter_found:
+            if not any(cat in layers for cat in DESIRED_CATEGORIES):
+                continue
+        if len(layers) == 1:
+            top = parent = layers[0]
         else:
-            parent = layers[-2]
+            top = layers[-2]  # either -2 or -1 works well, != parent
+            parent = layers[-1]  # either -2 or -1 works well, != top
         if top not in output:
             output[top] = defaultdict(dict)
         output[top][parent] = c
     return output
 
-# Goes with recursive_hunt_all()
-def get_file_list_all(root_file):
+def get_file_list(xml_file, filter_categories=False):
     """
-    Moves through the xml document <root_file> and returns information
-    about matches to elements in <categories>.
+    Moves through the xml document <xml_file> and returns information
+    about matches to elements in <DESIRED_CATEGORIES> if
+    <filter_categories> is True, or all files otherwise
 
     """
     descriptors = {}
     display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes', 'timestamp']
-    found = recursive_hunt_all(root_file, parents=[], matches={})
-    found = format_found(found)
+    found = xml_hunt(xml_file)
+    found = format_found(found, filter_categories)
     if not list(found.values()):
         return None
     category_id = 0
@@ -379,21 +298,21 @@ def print_data(data, org_name):
             continue
         catID = v["catID"]
         dict_to_get[catID] = {}
-        print(" {}: {} ".format(catID, query_cat).center(80, "="))
+        print(" [{}]: {} ".format(catID, query_cat).center(80, "="))
         results = v["results"]
         for sub_cat, items in sorted(iter(results.items()),
                                      key=lambda sub_cat_items: (sub_cat_items[0], sub_cat_items[1])):
-            print("# {}:".format(sub_cat))
+            print("{}:".format(sub_cat))
             for index, i in sorted(items.items()):
                 dict_to_get[catID][index] = i["url"]
-                print_index = "[{}] ".format(str(index))
+                print_index = " [{}] ".format(str(index))
                 date = shorten_timestamp(i["timestamp"])
                 size_date = "[{}|{}]".format(i["size"], date)
                 filename = i["filename"]
                 margin = 80 - (len(size_date) + len(print_index))
                 file_info = filename.ljust(margin, "-")
                 print("".join([print_index, file_info, size_date]))
-            print()  # padding
+        print()  # padding
     return dict_to_get
 
 def get_user_choice():
@@ -510,25 +429,23 @@ long_blurb = """
 
 # For example, consider the following results:
 
-=================================== 2: Genes ===================================
-# All models, Filtered and Not:
-[1] Nemve1.AllModels.gff.gz-----------------------------------------[20 MB|2012]
+====================== [1]: All models, Filtered and Not =======================
+Genes:
+ [1] Nemve1.AllModels.gff.gz----------------------------------------[20 MB|2012]
+Proteins:
+ [2] proteins.Nemve1AllModels.fasta.gz------------------------------[29 MB|2012]
+Transcripts:
+ [3] transcripts.Nemve1AllModels.fasta.gz---------------------------[55 MB|2012]
 
-# Filtered Models ("best"):
-[2] Nemve1.FilteredModels1.gff.gz------------------------------------[3 MB|2012]
-[3] Nvectensis_19_PAC2_0.GFF3.gz-------------------------------------[2 MB|2012]
-
-================================= 3: Proteins ==================================
-# All models, Filtered and Not:
-[1] proteins.Nemve1AllModels.fasta.gz-------------------------------[29 MB|2012]
-
-# Filtered Models ("best"):
-[2] proteins.Nemve1FilteredModels1.fasta.gz--------------------------[5 MB|2012]
-
+================================== [2]: Files ==================================
+Additional Files:
+ [1] N.vectensis_ABAV.modified.scflds.p2g.gz-----------------------[261 KB|2012]
+ [2] Nemve1.FilteredModels1.txt.gz-----------------------------------[2 MB|2012]
+ [3] Nemve1.fasta.gz------------------------------------------------[81 MB|2005]
 ---
 
-# To retrieve items 1 and 2 from 'Genes' and 2 from 'Proteins', the query
-# would be: '2:1,2;3:2'
+# To retrieve items 1 and 2 from 'All models, Filtered and Not' and item 3 from
+# 'Files', the appropriate query would be: '1:1,2;2:3'
 
 # /USAGE //////////////////////////////////////////////////////////////////////
 """
@@ -573,7 +490,7 @@ parser.add_argument("-c", "--configure", action='store_true',
                          "user/password configuration")
 parser.add_argument("-s", "--syntax_help", action='store_true')
 parser.add_argument("-f", "--filter_files", action='store_true',
-                    help="filter organism results by top "
+                    help="filter organism results by config "
                          "categories instead of reporting all files listed by JGI "
                          "for the query (work in progress)")
 parser.add_argument("-u", "--usage", action='store_true',
@@ -697,10 +614,9 @@ DESIRED_CATEGORIES = config_info["categories"]
 
 # Choose between different XML parsers
 if args.filter_files:  # user wants only those files in <desired_categories>
-    file_list = get_file_list(xml_root, DESIRED_CATEGORIES)
+    file_list = get_file_list(xml_index_filename, filter_categories=True)
 else:  # return all files found
-    file_list = get_file_list_all(xml_root)
-
+    file_list = get_file_list(xml_index_filename)
 # Check if file has any categories of interest
 if not any(v["results"] for v in list(file_list.values())):
     print(("ERROR: no results found for '{}' in any of the following "
