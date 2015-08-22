@@ -44,88 +44,81 @@ glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $ jgi-query.py
 
 # For example, consider the following results:
 
-=================================== 2: Genes ===================================
-# All models, Filtered and Not:
-[1] Nemve1.AllModels.gff.gz-----------------------------------------[20 MB|2012]
+====================== [1]: All models, Filtered and Not =======================
+Genes:
+ [1] Nemve1.AllModels.gff.gz----------------------------------------[20 MB|2012]
+Proteins:
+ [2] proteins.Nemve1AllModels.fasta.gz------------------------------[29 MB|2012]
+Transcripts:
+ [3] transcripts.Nemve1AllModels.fasta.gz---------------------------[55 MB|2012]
 
-# Filtered Models ("best"):
-[2] Nemve1.FilteredModels1.gff.gz------------------------------------[3 MB|2012]
-[3] Nvectensis_19_PAC2_0.GFF3.gz-------------------------------------[2 MB|2012]
-
-================================= 3: Proteins ==================================
-# All models, Filtered and Not:
-[1] proteins.Nemve1AllModels.fasta.gz-------------------------------[29 MB|2012]
-
-# Filtered Models ("best"):
-[2] proteins.Nemve1FilteredModels1.fasta.gz--------------------------[5 MB|2012]
-
+================================== [2]: Files ==================================
+Additional Files:
+ [1] N.vectensis_ABAV.modified.scflds.p2g.gz-----------------------[261 KB|2012]
+ [2] Nemve1.FilteredModels1.txt.gz-----------------------------------[2 MB|2012]
+ [3] Nemve1.fasta.gz------------------------------------------------[81 MB|2005]
 ---
 
-# To retrieve items 1 and 2 from 'Genes' and 2 from 'Proteins', the query
-# would be: '2:1,2;3:2'
+# To retrieve items 1 and 2 from 'All models, Filtered and Not' and item 3 from
+# 'Files', the appropriate query would be: '1:1,2;2:3'
 
 # /USAGE //////////////////////////////////////////////////////////////////////
 
 
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-100   197    0   152  100    45    273     80 --:--:-- --:--:-- --:--:--   447
+100   197    0   152  100    45    337    100 --:--:-- --:--:-- --:--:--   451
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-100  4012    0  4012    0     0   3976      0 --:--:--  0:00:01 --:--:--  6917
+100  4012    0  4012    0     0   8048      0 --:--:-- --:--:-- --:--:--  8778
 
 QUERY RESULTS FOR 'Nemve1'
 
-============================= 1: Additional Files ==============================
-# Files:
-[1] N.vectensis_ABAV.modified.scflds.p2g.gz------------------------[261 KB|2012]
-[2] Nemve1.FilteredModels1.txt.gz------------------------------------[2 MB|2012]
-[3] Nemve1.fasta.gz-------------------------------------------------[81 MB|2005]
-[4] Nemve_JGIest.fasta.gz-------------------------------------------[30 MB|2012]
-[5] Nemve_JGIestCL.fasta.gz------------------------------------------[8 MB|2012]
-[6] NvTRjug.fasta.gz-------------------------------------------------[4 KB|2012]
+====================== [1]: All models, Filtered and Not =======================
+Genes:
+ [1] Nemve1.AllModels.gff.gz----------------------------------------[20 MB|2012]
+Proteins:
+ [2] proteins.Nemve1AllModels.fasta.gz------------------------------[29 MB|2012]
+Transcripts:
+ [3] transcripts.Nemve1AllModels.fasta.gz---------------------------[55 MB|2012]
 
-=================================== 2: Genes ===================================
-# All models, Filtered and Not:
-[1] Nemve1.AllModels.gff.gz-----------------------------------------[20 MB|2012]
+================================== [2]: Files ==================================
+Additional Files:
+ [1] N.vectensis_ABAV.modified.scflds.p2g.gz-----------------------[261 KB|2012]
+ [2] Nemve1.FilteredModels1.txt.gz-----------------------------------[2 MB|2012]
+ [3] Nemve1.fasta.gz------------------------------------------------[81 MB|2005]
+ [4] Nemve_JGIest.fasta.gz------------------------------------------[30 MB|2012]
+ [5] Nemve_JGIestCL.fasta.gz-----------------------------------------[8 MB|2012]
+ [6] NvTRjug.fasta.gz------------------------------------------------[4 KB|2012]
 
-# Filtered Models ("best"):
-[2] Nemve1.FilteredModels1.gff.gz------------------------------------[3 MB|2012]
-[3] Nvectensis_19_PAC2_0.GFF3.gz-------------------------------------[2 MB|2012]
-
-================================= 3: Proteins ==================================
-# All models, Filtered and Not:
-[1] proteins.Nemve1AllModels.fasta.gz-------------------------------[29 MB|2012]
-
-# Filtered Models ("best"):
-[2] proteins.Nemve1FilteredModels1.fasta.gz--------------------------[5 MB|2012]
-
-================================ 4: Transcripts ================================
-# All models, Filtered and Not:
-[1] transcripts.Nemve1AllModels.fasta.gz----------------------------[55 MB|2012]
-
-# Filtered Models ("best"):
-[2] transcripts.Nemve1FilteredModels1.fasta.gz-----------------------[8 MB|2012]
+======================== [3]: Filtered Models ("best") =========================
+Genes:
+ [1] Nemve1.FilteredModels1.gff.gz-----------------------------------[3 MB|2012]
+ [2] Nvectensis_19_PAC2_0.GFF3.gz------------------------------------[2 MB|2012]
+Proteins:
+ [3] proteins.Nemve1FilteredModels1.fasta.gz-------------------------[5 MB|2012]
+Transcripts:
+ [4] transcripts.Nemve1FilteredModels1.fasta.gz----------------------[8 MB|2012]
 
 Enter file selection ('q' to quit, 'usage' to review syntax):
->2:2;4:1
-Total download size of selected files: 61.51 MB
+>2:5;3:1
+Total download size of selected files: 11.23 MB
 Continue? (y/n): y
+Downloading 'Nemve_JGIestCL.fasta.gz'
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 8421k  100 8421k    0     0  1850k      0  0:00:04  0:00:04 --:--:-- 1978k
 Downloading 'Nemve1.FilteredModels1.gff.gz'
 
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
-100 3078k  100 3078k    0     0  1256k      0  0:00:02  0:00:02 --:--:-- 1472k
-Downloading 'transcripts.Nemve1AllModels.fasta.gz'
-
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100 55.6M  100 55.6M    0     0  1807k      0  0:00:31  0:00:31 --:--:-- 1702k
+100 3078k  100 3078k    0     0  1047k      0  0:00:02  0:00:02 --:--:-- 1059k
 Finished downloading all files.
 Decompress all downloaded files? (y/n/k=decompress and keep original): y
 Finished decompressing all files.
 Keep temporary files ('Nemve1_jgi_index.xml' and 'cookies')? (y/n): n
 Removing temp files and exiting
-glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $ 
+glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $
 ```
 
