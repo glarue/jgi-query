@@ -252,14 +252,16 @@ def extract_file(file_path, keep_compressed=False):
                   }
     if re.search(tar_pattern, file_path):
         opener, mode, ext = endings_map["tar"]
+        with opener.open(file_path) as f:
+            f.extractall()
     elif re.search(gz_pattern, file_path):
         opener, mode, ext = endings_map["gz"]
+        out_name = file_path.rstrip(ext)
+        with opener.open(file_path) as f, open(out_name, "wb") as out:
+            for l in f:
+                out.write(l)
     else:
         raise ValueError("No decompression implemented for '{}'".format(file_path))
-    out_name = file_path.rstrip(ext)
-    with opener.open(file_path) as f, open(out_name, "wb") as out:
-        for l in f:
-            out.write(l)
     if not keep_compressed:
         os.remove(file_path)
 
