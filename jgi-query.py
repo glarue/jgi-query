@@ -584,7 +584,7 @@ if not org_input:
     if args.configure:
         sys.exit("Configuration complete. Script may now be used to query JGI. "
                  "Exiting now.")
-    elif args.xml:  # assume user specified XML file
+    elif args.xml and args.xml != 1:
         # Use org_input because is already checked further down
         # and avoids re-writing this whole block
         org_input = get_org_name(args.xml)
