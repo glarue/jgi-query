@@ -253,11 +253,18 @@ def extract_file(file_path, keep_compressed=False):
     relative_name = os.path.basename(file_path)
     if re.search(tar_pattern, file_path):
         opener, mode, ext = endings_map["tar"]
-        # Make directory into which to unpack archive
-        dir_name = relative_name.rstrip(ext)
-        os.mkdir(dir_name)
         with opener.open(file_path) as f:
-            f.extractall(dir_name)
+            file_count = len(f.getmembers())
+            if file_count > 1:  # make sub-directory to unpack into
+                dir_name = relative_name.rstrip(ext)
+                try:
+                    os.mkdir(dir_name)
+                except FileExistsError:
+                    pass
+                destination = dir_name
+            else:  # single file, extract into working directory
+                destination = "."
+            f.extractall(destination)
     elif re.search(gz_pattern, file_path):
         opener, mode, ext = endings_map["gz"]
         # out_name = file_path.rstrip(ext)
@@ -266,7 +273,8 @@ def extract_file(file_path, keep_compressed=False):
             for l in f:
                 out.write(l)
     else:
-        raise ValueError("No decompression implemented for '{}'".format(file_path))
+        raise ValueError("No decompression implemented for '{}'"
+                         .format(file_path))
     if not keep_compressed:
         os.remove(file_path)
 
