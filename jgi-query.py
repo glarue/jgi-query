@@ -250,13 +250,18 @@ def extract_file(file_path, keep_compressed=False):
     endings_map = {"tar": (tarfile, "r:gz", ".tar.gz"),
                    "gz": (gzip, "rb", ".gz")
                   }
+    relative_name = os.path.basename(file_path)
     if re.search(tar_pattern, file_path):
         opener, mode, ext = endings_map["tar"]
+        # Make directory into which to unpack archive
+        dir_name = relative_name.rstrip(ext)
+        os.mkdir(dir_name)
         with opener.open(file_path) as f:
-            f.extractall()
+            f.extractall(dir_name)
     elif re.search(gz_pattern, file_path):
         opener, mode, ext = endings_map["gz"]
-        out_name = file_path.rstrip(ext)
+        # out_name = file_path.rstrip(ext)
+        out_name = relative_name.rstrip(ext)
         with opener.open(file_path) as f, open(out_name, "wb") as out:
             for l in f:
                 out.write(l)
