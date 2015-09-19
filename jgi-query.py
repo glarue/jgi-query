@@ -376,6 +376,28 @@ def url_format_checker(u):
         u = u.split("url=")[-1]  # take the bit after the prepended string
     return u
 
+def get_org_name(xml_file):
+    """
+    Checks an XML file for organism name information,
+    for cases where an XML file is used without organism
+    information supplied by the user. Returns None if
+    no organism name is found.
+
+    XML entry format is: <organismDownloads name="org_name">
+
+    """
+    name_pattern = r"name=\"(.+)\""
+    org_line = None
+    with open(xml_file) as f:
+        for l in f:
+            if "organismDownloads" in l:  # standardized name indicator
+                org_line = l.strip()
+                break  # don't keep looking, already found
+    try:
+        org_name = re.search(name_pattern, org_line).group(1)
+        return org_name
+    except TypeError:  # org_line still None
+        return None
 
 # /FUNCTIONS
 
@@ -400,7 +422,7 @@ species of interest. Click through until you are at the "Info" page. For
 To query using only the name simply requires the specific JGI organism
 abbreviation, as referenced in the full url.
 
-For the above example, the ways to run this script would be:
+For the above example, the proper input syntax for this script would be:
 
 $ jgi-query.py http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html
 
@@ -408,13 +430,16 @@ $ jgi-query.py http://genome.jgi.doe.gov/Nemve1/Nemve1.info.html
 
 $ jgi-query.py Nemve1
 
-* If you already have the xml file for the query in the directory,
-you may use the -xml flag to avoid redownloading it:
+If you already have the XML file for the query in the directory, you may use
+the --xml flag to avoid redownloading it (particularly useful if querying
+large, top-level groups with many sub-species, such as "fungi"):
 
-$ jgi-query.py -xml <your_xml_index>
+$ jgi-query.py --xml <your_xml_index>
 
-If the XML filename is omitted when using the -xml flag, it is assumed
-that the XML file is named '<jgi_abbreviation>_jgi_index.xml'
+If the XML filename is omitted when using the --xml flag, it is assumed that
+the XML file is named '<jgi_abbreviation>_jgi_index.xml'. In such cases, the
+organism name is required.
+
 # /USAGE //////////////////////////////////////////////////////////////////////
 """
 
@@ -559,6 +584,12 @@ if not org_input:
     if args.configure:
         sys.exit("Configuration complete. Script may now be used to query JGI. "
                  "Exiting now.")
+    elif args.xml:  # assume user specified XML file
+        # Use org_input because is already checked further down
+        # and avoids re-writing this whole block
+        org_input = get_org_name(args.xml)
+        if not org_input:
+            sys.exit("No organism specified. Exiting now.")
     else:
         sys.exit("No organism specified. Exiting now.")
 try:  # see if it's in address form
@@ -575,12 +606,15 @@ print(long_blurb)
 print()  # padding
 
 # Get xml index of files, using existing local file or curl API
-# if "-xml" in sys.argv:
 if args.xml:
     local_xml = True  # global referenced by cleanExit()
-else:
+    xml_arg = args.xml
+    if xml_arg == 1:  # -xml flag used without argument
+        xml_index_filename = '{}_jgi_index.xml'.format(organism)
+    else:
+        xml_index_filename = xml_arg
+else:  # fetch XML file from JGI
     local_xml = False
-if not local_xml:  # retrieve from JGI
     xml_index_filename = '{}_jgi_index.xml'.format(organism)
     xml_address = ("curl {} -b cookies -c cookies > {}"
                    .format(org_url, xml_index_filename))
@@ -590,12 +624,6 @@ if not local_xml:  # retrieve from JGI
         cleanExit("Couldn't connect with server. Please check Internet connection "
                   "and retry.")
     subprocess.call(xml_address, shell=True)
-else:
-    xml_arg = args.xml
-    if xml_arg == 1: # -xml flag used without argument
-        xml_index_filename = '{}_jgi_index.xml'.format(organism)
-    else:
-        xml_index_filename = xml_arg
 
 # Parse xml file for content to download
 xml_root = None
