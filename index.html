@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>jgi-query by glarue</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">jgi-query</h1>
+      <h2 class="project-tagline">A simple command-line tool to download data from the Joint Genome Institute (JGI)&#39;s databases</h2>
+      <a href="https://github.com/glarue/jgi-query" class="btn">View on GitHub</a>
+      <a href="https://github.com/glarue/jgi-query/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/glarue/jgi-query/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="jgi-query" class="anchor" href="#jgi-query" aria-hidden="true"><span class="octicon octicon-link"></span></a>jgi-query</h1>
+
+<p>A command-line tool for querying and downloading from the <a href="http://genome.jgi-psf.org/">Joint Genome Institute (JGI)</a> online database. Useful for accessing JGI data from command-line-only resources such as remote servers, or as a lightweight alternative to JGI's other <a href="http://genome.jgi-psf.org/help/download.jsf">GUI-based download tools</a>.</p>
+
+<h3>
+<a id="dependencies" class="anchor" href="#dependencies" aria-hidden="true"><span class="octicon octicon-link"></span></a>Dependencies</h3>
+
+<ul>
+<li>A <a href="http://contacts.jgi-psf.org/registration/new">user account with JGI</a> (free)</li>
+<li>
+<a href="http://curl.haxx.se/">cURL</a>, required by the JGI download API</li>
+<li>
+<a href="https://www.python.org/downloads/">Python</a> 3.x (current development) or 2.7.x (deprecated but provided)</li>
+</ul>
+
+<h3>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h3>
+
+<ol>
+<li>Download <code>jgi-query.py</code>
+</li>
+<li>Ensure that you're running the correct version of Python with <code>python --version</code>. If this reports Python 2.x, run the script using <code>python3</code> instead of <code>python</code>
+</li>
+<li>From the command line, run the script with the command <code>python jgi-query.py</code> to show usage information and further instructions</li>
+</ol>
+
+<h3>
+<a id="author-notes" class="anchor" href="#author-notes" aria-hidden="true"><span class="octicon octicon-link"></span></a>Author notes</h3>
+
+<p>This is a somewhat better-commented (emphasis on "somewhat") version of a script I wrote for grabbing various datasets using a headless Linux server. For a lot of my lab's bioinformatics work, we don't store/manipulate data on our local computers, and I was not able to find a good tool that allowed for convenient queries of the JGI database without additional software.</p>
+
+<p>JGI also no longer allows simple downloading of many of their datasets (via <code>wget</code>, for example), which is another reason behind the creation of this script.</p>
+
+<p>I highly encourage anyone with more advanced Python skills (read: almost everyone) to fork and submit pull requests, and hope that someone else finds it useful.</p>
+
+<h3>
+<a id="general-overview" class="anchor" href="#general-overview" aria-hidden="true"><span class="octicon octicon-link"></span></a>General overview</h3>
+
+<p>JGI uses a <a href="https://docs.google.com/document/d/1UXovE52y1ab8dZVa-LYNJtgUVgK55nHSQR3HQEJJ5-A/view">cURL-based API</a> to provide information/download links to files in their database.</p>
+
+<p>In brief, <code>jgi-query.py</code> begins by using cURL to grab an XML file for the query text. The XML file describes all of the available files and their parent categories. For example, the file for <em>Aureobasidium subglaciale</em> (JGI abbreviation "Aurpu_var_sub1") begins:</p>
+
+<p><img src="http://i.imgur.com/4nImnxx.png" alt="Aurpu_var_sub1_xml_example"></p>
+
+<p><code>jgi-query.py</code> will parse the XML file to find entries with a <code>filename</code> attribute and, depending on command-line arguments, a parent category from the list of categories in <code>jgi-query.config</code>. It then displays the available files with minimal metadata, and prompts the user to enter their selection.</p>
+
+<p>Main file categories in the report are numbered, as are files within each category. The selection syntax is <code>category_number</code>:<code>file_selection</code>, where <code>file_selection</code> is either a comma-separated list (e.g. <code>file1</code>, <code>file2</code>) or a contiguous range (e.g. <code>file1</code>-<code>file4</code>). For multiple parent categories and associated files, category/file list groupings are linked with semicolons (e.g. <code>category1</code>:<code>file1</code>,<code>file2</code>;<code>category2</code>:<code>file5</code>-<code>file8</code>).</p>
+
+<h3>
+<a id="sample-output-for-nematostella-vectensis-jgi-abbreviation-nemve1" class="anchor" href="#sample-output-for-nematostella-vectensis-jgi-abbreviation-nemve1" aria-hidden="true"><span class="octicon octicon-link"></span></a>Sample output for <em>Nematostella vectensis</em> (JGI abbreviation 'Nemve1')</h3>
+
+<div class="highlight highlight-source-shell"><pre>glarue@glarue-XPS-13 <span class="pl-k">~</span>/Documents/Coding/Python/Research/jgi-query $ jgi-query.py Nemve1
+
+<span class="pl-c"># USAGE ///////////////////////////////////////////////////////////////////////</span>
+
+<span class="pl-c"># Select one or more of the following to download, using the</span>
+<span class="pl-c"># following format:</span>
+<span class="pl-c">#     &lt;category number&gt;:&lt;indices&gt;;&lt;category number&gt;:&lt;indices&gt;;...</span>
+
+<span class="pl-c"># Indices may be a mixture of comma-separated values and hyphen-</span>
+<span class="pl-c"># separated ranges.</span>
+
+<span class="pl-c"># For example, consider the following results:</span>
+
+====================== [1]: All models, Filtered and Not =======================
+Genes:
+ [1] Nemve1.AllModels.gff.gz----------------------------------------[20 MB<span class="pl-k">|</span>2012]
+Proteins:
+ [2] proteins.Nemve1AllModels.fasta.gz------------------------------[29 MB<span class="pl-k">|</span>2012]
+Transcripts:
+ [3] transcripts.Nemve1AllModels.fasta.gz---------------------------[55 MB<span class="pl-k">|</span>2012]
+
+================================== [2]: Files ==================================
+Additional Files:
+ [1] N.vectensis_ABAV.modified.scflds.p2g.gz-----------------------[261 KB<span class="pl-k">|</span>2012]
+ [2] Nemve1.FilteredModels1.txt.gz-----------------------------------[2 MB<span class="pl-k">|</span>2012]
+ [3] Nemve1.fasta.gz------------------------------------------------[81 MB<span class="pl-k">|</span>2005]
+---
+
+<span class="pl-c"># To retrieve items 1 and 2 from 'All models, Filtered and Not' and item 3 from</span>
+<span class="pl-c"># 'Files', the appropriate query would be: '1:1,2;2:3'</span>
+
+<span class="pl-c"># /USAGE //////////////////////////////////////////////////////////////////////</span>
+
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   197    0   152  100    45    337    100 --:--:-- --:--:-- --:--:--   451
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  4012    0  4012    0     0   8048      0 --:--:-- --:--:-- --:--:--  8778
+
+QUERY RESULTS FOR <span class="pl-s"><span class="pl-pds">'</span>Nemve1<span class="pl-pds">'</span></span>
+
+====================== [1]: All models, Filtered and Not =======================
+Genes:
+ [1] Nemve1.AllModels.gff.gz----------------------------------------[20 MB<span class="pl-k">|</span>2012]
+Proteins:
+ [2] proteins.Nemve1AllModels.fasta.gz------------------------------[29 MB<span class="pl-k">|</span>2012]
+Transcripts:
+ [3] transcripts.Nemve1AllModels.fasta.gz---------------------------[55 MB<span class="pl-k">|</span>2012]
+
+================================== [2]: Files ==================================
+Additional Files:
+ [1] N.vectensis_ABAV.modified.scflds.p2g.gz-----------------------[261 KB<span class="pl-k">|</span>2012]
+ [2] Nemve1.FilteredModels1.txt.gz-----------------------------------[2 MB<span class="pl-k">|</span>2012]
+ [3] Nemve1.fasta.gz------------------------------------------------[81 MB<span class="pl-k">|</span>2005]
+ [4] Nemve_JGIest.fasta.gz------------------------------------------[30 MB<span class="pl-k">|</span>2012]
+ [5] Nemve_JGIestCL.fasta.gz-----------------------------------------[8 MB<span class="pl-k">|</span>2012]
+ [6] NvTRjug.fasta.gz------------------------------------------------[4 KB<span class="pl-k">|</span>2012]
+
+======================== [3]: Filtered Models (<span class="pl-s"><span class="pl-pds">"</span>best<span class="pl-pds">"</span></span>) =========================
+Genes:
+ [1] Nemve1.FilteredModels1.gff.gz-----------------------------------[3 MB<span class="pl-k">|</span>2012]
+ [2] Nvectensis_19_PAC2_0.GFF3.gz------------------------------------[2 MB<span class="pl-k">|</span>2012]
+Proteins:
+ [3] proteins.Nemve1FilteredModels1.fasta.gz-------------------------[5 MB<span class="pl-k">|</span>2012]
+Transcripts:
+ [4] transcripts.Nemve1FilteredModels1.fasta.gz----------------------[8 MB<span class="pl-k">|</span>2012]
+
+Enter file selection (<span class="pl-s"><span class="pl-pds">'</span>q<span class="pl-pds">'</span></span> to quit, <span class="pl-s"><span class="pl-pds">'</span>usage<span class="pl-pds">'</span></span> to review syntax):
+<span class="pl-k">&gt;</span>2:5<span class="pl-k">;</span>3:1
+Total download size of selected files: 11.23 MB
+Continue<span class="pl-k">?</span> (y/n): y
+Downloading <span class="pl-s"><span class="pl-pds">'</span>Nemve_JGIestCL.fasta.gz<span class="pl-pds">'</span></span>
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 8421k  100 8421k    0     0  1850k      0  0:00:04  0:00:04 --:--:-- 1978k
+Downloading <span class="pl-s"><span class="pl-pds">'</span>Nemve1.FilteredModels1.gff.gz<span class="pl-pds">'</span></span>
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 3078k  100 3078k    0     0  1047k      0  0:00:02  0:00:02 --:--:-- 1059k
+Finished downloading all files.
+Decompress all downloaded files<span class="pl-k">?</span> (y/n/k=decompress and keep original): y
+Finished decompressing all files.
+Keep temporary files (<span class="pl-s"><span class="pl-pds">'</span>Nemve1_jgi_index.xml<span class="pl-pds">'</span></span> and <span class="pl-s"><span class="pl-pds">'</span>cookies<span class="pl-pds">'</span></span>)<span class="pl-k">?</span> (y/n): n
+Removing temp files and exiting
+glarue@glarue-XPS-13 <span class="pl-k">~</span>/Documents/Coding/Python/Research/jgi-query $</pre></div>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/glarue/jgi-query">jgi-query</a> is maintained by <a href="https://github.com/glarue">glarue</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
