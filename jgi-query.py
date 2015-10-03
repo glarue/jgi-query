@@ -412,6 +412,46 @@ def get_org_name(xml_file):
     except TypeError:  # org_line still None
         return None
 
+def is_xml(filename):
+    """
+    Uses hex code at the beginning of a file to try to determine if it's an
+    XML file or not. This seems to be occasionally necessary; if pulling
+    files from JGI tape archives, the server may error out and provide an
+    XML error document instead of the intended file. This function should
+    return False on all downloaded files, although false positives have not
+    been thoroughly investigated.
+
+    Adapted from http://stackoverflow.com/a/13044946/3076552
+
+    """
+    xml_hex = "\x3c"  # hex code at beginning of XML files
+    read_length = len(xml_hex)
+    with open(filename) as f:
+        try:
+            file_start = f.read(read_length)
+        except UnicodeDecodeError:  # compressed files
+            return False
+        if file_start.startswith(xml_hex):  # XML file
+            return True
+        else:  # hopefully all other file types
+            return False
+
+def hidden_xml_check(file_list):
+    """
+    Checks a file list for any files that are actually XML error files,
+    but which were intended to be of another format. Returns a list of
+    all files not failing the test.
+
+    """
+    for f in list(file_list):  # iterate over copy
+        if is_xml(f):
+            if not f.lower().endswith("xml"):  # in case it was supposed to be XML
+                print("ERROR: '{}' appears to be malformed and will be left "
+                      "unmodified.".format(f))
+                file_list.remove(f)  # don't try to process downstream
+    return file_list
+
+
 # /FUNCTIONS
 
 # BLURBS
@@ -622,7 +662,7 @@ print()  # padding
 if args.xml:
     local_xml = True  # global referenced by cleanExit()
     xml_arg = args.xml
-    if xml_arg == 1:  # -xml flag used without argument
+    if xml_arg == 1:  # --xml flag used without argument
         xml_index_filename = '{}_jgi_index.xml'.format(organism)
     else:
         xml_index_filename = xml_arg
@@ -700,9 +740,9 @@ if download.lower() != "y":
     cleanExit("ABORTING DOWNLOAD")
 
 # Run curl commands to retrieve selected files
+# Make sure the URL formats conforms to the Genome Portal format
 downloaded_files = []
 for url in urls_to_get:
-    # Make sure the URL format conforms to the Genome Portal format
     url = url_format_checker(url)
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
@@ -715,16 +755,21 @@ for url in urls_to_get:
 
 print('Finished downloading all files.')
 
-# Kindly offer to unpack files
-decompress = input('Decompress all downloaded files? '
-                   '(y/n/k=decompress and keep original): ')
-if decompress != "n":
-    if decompress == "k":
-        keep_original = True
-    else:
-        keep_original = False
-    decompress_files(downloaded_files, keep_original)
-    print('Finished decompressing all files.')
+# Check files for failed downloads (in the form of XML error files
+# masquerading as requested files)
+downloaded_files = hidden_xml_check(downloaded_files)
+
+# Kindly offer to unpack files, if files remain after error check
+if downloaded_files:
+    decompress = input('Decompress all downloaded files? '
+                       '(y/n/k=decompress and keep original): ')
+    if decompress != "n":
+        if decompress == "k":
+            keep_original = True
+        else:
+            keep_original = False
+        decompress_files(downloaded_files, keep_original)
+        print('Finished decompressing all files.')
 
 # Clean up and exit
 # "cookies" file is always created
