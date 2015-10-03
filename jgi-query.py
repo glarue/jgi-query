@@ -706,9 +706,9 @@ for url in urls_to_get:
     url = url_format_checker(url)
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
-    print('Downloading \'{}\'\n'.format(filename))
     download_command = 'curl http://genome.jgi.doe.gov{} -b cookies'\
                        ' -c cookies > {}'.format(url, filename)
+    print('Downloading \'{}\' using command:\n{}'.format(filename, download_command))
 # The next line doesn't appear to be needed to refresh the cookies.
 #    subprocess.call(login, shell=True)
     subprocess.call(download_command, shell=True)
@@ -716,7 +716,8 @@ for url in urls_to_get:
 print('Finished downloading all files.')
 
 # Kindly offer to unpack files
-decompress = input('Decompress all downloaded files? (y/n/k=decompress and keep original): ')
+decompress = input('Decompress all downloaded files? '
+                   '(y/n/k=decompress and keep original): ')
 if decompress != "n":
     if decompress == "k":
         keep_original = True
