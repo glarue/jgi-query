@@ -306,12 +306,19 @@ def shorten_timestamp(time_string):
     """
     Parses the timestamp string from an XML document
     of the form "Thu Feb 27 16:38:54 PST 2014"
-    and returns a string of the form "02/2014".
+    and returns a string of the form "2014".
 
     """
-    time_info = dateutil.parser.parse(time_string)
     # month_year = "{:02d}/{}".format(time_info.tm_mon, time_info.tm_year)
     year = str(time_info.year)
+    # Remove platform-dependent timezone substring
+    # of the general form "xxT"
+    tz_pattern = re.compile("\s[A-Z]{2}T\s")
+    time_string = tz_pattern.sub(" ", time_string)
+
+    # Get the desired time info
+    time_info = time.strptime(time_string, "%a %b %d %H:%M:%S %Y")
+    year = str(time_info.tm_year)
     return year
 
 
