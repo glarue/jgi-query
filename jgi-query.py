@@ -14,9 +14,10 @@ from collections import defaultdict
 import argparse
 import tarfile
 import gzip
-import time
+import dateutil.parser
 
 # FUNCTIONS
+
 
 def deindent(string):
     """
@@ -24,6 +25,7 @@ def deindent(string):
 
     """
     print(textwrap.dedent(string))
+
 
 def check_config(d, config_name):
     """
@@ -38,6 +40,7 @@ def check_config(d, config_name):
         return config_path
     else:
         return None
+
 
 def get_user_info():
     """
@@ -81,6 +84,7 @@ def get_user_info():
         if choice.lower() == "y":
             return user_info
 
+
 def make_config(config_path, config_info):
     """
     Creates a config file <config_path> using
@@ -91,11 +95,13 @@ def make_config(config_path, config_info):
     p = config_info["password"]
     c = config_info["categories"]
     c = ",".join(c)
-    header = "# jgi-query.py user configuration information {}\n".format("#" * 34)
+    header = "# jgi-query.py user configuration information {}\n".format(
+        "#" * 34)
     info = "user={}\npassword={}\ncategories={}".format(u, p, c)
     with open(config_path, 'w') as config:
         config.write(header)
         config.write(info)
+
 
 def read_config(config):
     """
@@ -121,6 +127,7 @@ def read_config(config):
     return config_info
 
 # /CONFIG
+
 
 def xml_hunt(xml_file):
     """
@@ -149,6 +156,7 @@ def xml_hunt(xml_file):
                 matches[parent_string] = [element.attrib]
     return matches
 
+
 def format_found(d, filter_found=False):
     """
     Reformats the output from recursive_hunt_all()
@@ -170,6 +178,7 @@ def format_found(d, filter_found=False):
         output[top][parent] = c
     return output
 
+
 def get_file_list(xml_file, filter_categories=False):
     """
     Moves through the xml document <xml_file> and returns information
@@ -178,7 +187,8 @@ def get_file_list(xml_file, filter_categories=False):
 
     """
     descriptors = {}
-    display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes', 'timestamp']
+    display_cats = ['filename', 'url', 'size',
+                    'label', 'sizeInBytes', 'timestamp']
     found = xml_hunt(xml_file)
     found = format_found(found, filter_categories)
     if not list(found.values()):
@@ -207,6 +217,7 @@ def get_file_list(xml_file, filter_categories=False):
                 uid += 1
     return descriptors
 
+
 def get_sizes(d, sizes_by_url=None):
     """
     Builds a dictionary of url:sizes from
@@ -223,6 +234,7 @@ def get_sizes(d, sizes_by_url=None):
                 get_sizes(v, sizes_by_url)
     return sizes_by_url
 
+
 def cleanExit(exit_message=None):
     to_remove = ["cookies"]
     if not local_xml:  # don't delete xml file if supplied by user
@@ -238,6 +250,7 @@ def cleanExit(exit_message=None):
         print_message = ""
     sys.exit("{}Removing temp files and exiting".format(print_message))
 
+
 def extract_file(file_path, keep_compressed=False):
     """
     Native Python file decompression for tar.gz and .gz files.
@@ -249,7 +262,7 @@ def extract_file(file_path, keep_compressed=False):
     gz_pattern = '(?<!tar)\.gz$'  # excludes tar.gz
     endings_map = {"tar": (tarfile, "r:gz", ".tar.gz"),
                    "gz": (gzip, "rb", ".gz")
-                  }
+                   }
     relative_name = os.path.basename(file_path)
     if re.search(tar_pattern, file_path):
         opener, mode, ext = endings_map["tar"]
@@ -278,6 +291,7 @@ def extract_file(file_path, keep_compressed=False):
     if not keep_compressed:
         os.remove(file_path)
 
+
 def decompress_files(local_file_list, keep_original=False):
     """
     Decompresses list of files, and deletes compressed
@@ -287,6 +301,7 @@ def decompress_files(local_file_list, keep_original=False):
     for f in local_file_list:
         extract_file(f, keep_original)
 
+
 def shorten_timestamp(time_string):
     """
     Parses the timestamp string from an XML document
@@ -294,10 +309,11 @@ def shorten_timestamp(time_string):
     and returns a string of the form "02/2014".
 
     """
-    time_info = time.strptime(time_string, "%a %b %d %H:%M:%S %Z %Y")
+    time_info = dateutil.parser.parse(time_string)
     # month_year = "{:02d}/{}".format(time_info.tm_mon, time_info.tm_year)
-    year = str(time_info.tm_year)
+    year = str(time_info.year)
     return year
+
 
 def print_data(data, org_name):
     """
@@ -330,8 +346,10 @@ def print_data(data, org_name):
         print()  # padding
     return dict_to_get
 
+
 def get_user_choice():
-    choice = input("Enter file selection ('q' to quit, 'usage' to review syntax):\n>")
+    choice = input(
+        "Enter file selection ('q' to quit, 'usage' to review syntax):\n>")
     if choice == "usage":
         print()
         print(select_blurb)
@@ -341,6 +359,7 @@ def get_user_choice():
         cleanExit()
     else:
         return choice
+
 
 def parse_selection(user_input):
     """
@@ -353,7 +372,8 @@ def parse_selection(user_input):
     parts = user_input.split(";")
     for p in parts:
         if len(p.split(":")) > 2:
-            cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(p))
+            cleanExit(
+                "FATAL ERROR: can't parse desired input\n?-->'{}'".format(p))
         category, indices = p.split(":")
         category = int(category)
         selections[category] = []
@@ -366,11 +386,13 @@ def parse_selection(user_input):
                 try:
                     start, stop = list(map(int, i.split("-")))
                 except:
-                    cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(i))
+                    cleanExit(
+                        "FATAL ERROR: can't parse desired input\n?-->'{}'".format(i))
                 add_range = list(range(start, stop + 1))
                 for e in add_range:
                     cat_list.append(e)
     return selections
+
 
 def url_format_checker(u):
     """
@@ -388,6 +410,7 @@ def url_format_checker(u):
     if "url=" in u:
         u = u.split("url=")[-1]  # take the bit after the prepended string
     return u
+
 
 def get_org_name(xml_file):
     """
@@ -412,6 +435,7 @@ def get_org_name(xml_file):
     except TypeError:  # org_line still None
         return None
 
+
 def is_xml(filename):
     """
     Uses hex code at the beginning of a file to try to determine if it's an
@@ -435,6 +459,7 @@ def is_xml(filename):
             return True
         else:  # hopefully all other file types
             return False
+
 
 def hidden_xml_check(file_list):
     """
@@ -724,7 +749,7 @@ for k, v in sorted(ids_dict.items()):
 # Calculate and display total size of selected data
 total_size = sum([file_sizes[url] for url in urls_to_get])
 # adjusted = total_size/1e6  # bytes to MB
-adjusted = total_size/(1024 * 1024)  # bytes to MB
+adjusted = total_size / (1024 * 1024)  # bytes to MB
 if adjusted < 1:
     adjusted = total_size / 1024
     unit = "KB"
@@ -748,7 +773,8 @@ for url in urls_to_get:
     downloaded_files.append(filename)
     download_command = 'curl http://genome.jgi.doe.gov{} -b cookies'\
                        ' -c cookies > {}'.format(url, filename)
-    print('Downloading \'{}\' using command:\n{}'.format(filename, download_command))
+    print('Downloading \'{}\' using command:\n{}'.format(
+        filename, download_command))
 # The next line doesn't appear to be needed to refresh the cookies.
 #    subprocess.call(login, shell=True)
     subprocess.call(download_command, shell=True)
@@ -774,7 +800,7 @@ if downloaded_files:
 # Clean up and exit
 # "cookies" file is always created
 keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
-                      .format(xml_index_filename))
+                  .format(xml_index_filename))
 if keep_temp.lower() not in "y, yes":
     cleanExit()
 else:
