@@ -296,7 +296,7 @@ def shorten_timestamp(time_string):
     """
     # Remove platform-dependent timezone substring
     # of the general form "xxT"
-    tz_pattern = re.compile("\s[A-Z]{2}T\s")
+    tz_pattern = re.compile("\s[A-Z]{3}\s")
     time_string = tz_pattern.sub(" ", time_string)
 
     # Get the desired time info
