@@ -14,7 +14,7 @@ from collections import defaultdict
 import argparse
 import tarfile
 import gzip
-import dateutil.parser
+import time
 
 # FUNCTIONS
 
@@ -310,7 +310,6 @@ def shorten_timestamp(time_string):
 
     """
     # month_year = "{:02d}/{}".format(time_info.tm_mon, time_info.tm_year)
-    year = str(time_info.year)
     # Remove platform-dependent timezone substring
     # of the general form "xxT"
     tz_pattern = re.compile("\s[A-Z]{2}T\s")
