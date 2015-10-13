@@ -766,7 +766,7 @@ downloaded_files = hidden_xml_check(downloaded_files)
 
 # Kindly offer to unpack files, if files remain after error check
 if downloaded_files:
-    decompress = input("Decompress all downloaded files\n(y/n/k=decompress and keep original)? ")
+    decompress = input("Decompress all downloaded files?\n(y/n/k=decompress and keep original): ")
     if decompress != "n":
         if decompress == "k":
             keep_original = True
