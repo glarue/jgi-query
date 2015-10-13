@@ -16,6 +16,7 @@ import tarfile
 import gzip
 import time
 
+
 # FUNCTIONS
 
 def deindent(string):
@@ -24,6 +25,7 @@ def deindent(string):
 
     """
     print(textwrap.dedent(string))
+
 
 def check_config(d, config_name):
     """
@@ -38,6 +40,7 @@ def check_config(d, config_name):
         return config_path
     else:
         return None
+
 
 def get_user_info():
     """
@@ -68,8 +71,8 @@ def get_user_info():
     pw = input(pw_query)
     if pw == "q":
         sys.exit("Exiting now.")
-    input_blurb = ("Proceed with USER='{}', PASSWORD='{}' to configure script?\n"
-                   "([y]es, [n]o, [r]estart): ".format(user, pw))
+    input_blurb = ("Proceed with USER='{}', PASSWORD='{}' to configure "
+                   "script?\n([y]es, [n]o, [r]estart): ".format(user, pw))
     user_info = {"user": user, "password": pw}
     while True:  # catch invalid responses
         choice = input(input_blurb)
@@ -81,6 +84,7 @@ def get_user_info():
         if choice.lower() == "y":
             return user_info
 
+
 def make_config(config_path, config_info):
     """
     Creates a config file <config_path> using
@@ -91,11 +95,13 @@ def make_config(config_path, config_info):
     p = config_info["password"]
     c = config_info["categories"]
     c = ",".join(c)
-    header = "# jgi-query.py user configuration information {}\n".format("#" * 34)
+    header = ("# jgi-query.py user configuration information {}\n"
+              .format("#" * 34))
     info = "user={}\npassword={}\ncategories={}".format(u, p, c)
     with open(config_path, 'w') as config:
         config.write(header)
         config.write(info)
+
 
 def read_config(config):
     """
@@ -115,10 +121,11 @@ def read_config(config):
                 cats = line.strip().split("=")[1]
                 categories = [e.strip() for e in cats.split(",")]
     if not (user and pw):
-        sys.exit("ERROR: Config file present ({}), but user and/or password not found."
-                 .format(config))
+        sys.exit("ERROR: Config file present ({}), but user and/or "
+                 "password not found.".format(config))
     config_info = {"user": user, "password": pw, "categories": categories}
     return config_info
+
 
 # /CONFIG
 
@@ -149,6 +156,7 @@ def xml_hunt(xml_file):
                 matches[parent_string] = [element.attrib]
     return matches
 
+
 def format_found(d, filter_found=False):
     """
     Reformats the output from recursive_hunt_all()
@@ -170,6 +178,7 @@ def format_found(d, filter_found=False):
         output[top][parent] = c
     return output
 
+
 def get_file_list(xml_file, filter_categories=False):
     """
     Moves through the xml document <xml_file> and returns information
@@ -178,7 +187,8 @@ def get_file_list(xml_file, filter_categories=False):
 
     """
     descriptors = {}
-    display_cats = ['filename', 'url', 'size', 'label', 'sizeInBytes', 'timestamp']
+    display_cats = ['filename', 'url', 'size',
+                    'label', 'sizeInBytes', 'timestamp']
     found = xml_hunt(xml_file)
     found = format_found(found, filter_categories)
     if not list(found.values()):
@@ -207,6 +217,7 @@ def get_file_list(xml_file, filter_categories=False):
                 uid += 1
     return descriptors
 
+
 def get_sizes(d, sizes_by_url=None):
     """
     Builds a dictionary of url:sizes from
@@ -223,6 +234,7 @@ def get_sizes(d, sizes_by_url=None):
                 get_sizes(v, sizes_by_url)
     return sizes_by_url
 
+
 def cleanExit(exit_message=None):
     to_remove = ["cookies"]
     if not local_xml:  # don't delete xml file if supplied by user
@@ -238,6 +250,7 @@ def cleanExit(exit_message=None):
         print_message = ""
     sys.exit("{}Removing temp files and exiting".format(print_message))
 
+
 def extract_file(file_path, keep_compressed=False):
     """
     Native Python file decompression for tar.gz and .gz files.
@@ -249,7 +262,7 @@ def extract_file(file_path, keep_compressed=False):
     gz_pattern = '(?<!tar)\.gz$'  # excludes tar.gz
     endings_map = {"tar": (tarfile, "r:gz", ".tar.gz"),
                    "gz": (gzip, "rb", ".gz")
-                  }
+                   }
     relative_name = os.path.basename(file_path)
     if re.search(tar_pattern, file_path):
         opener, mode, ext = endings_map["tar"]
@@ -278,6 +291,7 @@ def extract_file(file_path, keep_compressed=False):
     if not keep_compressed:
         os.remove(file_path)
 
+
 def decompress_files(local_file_list, keep_original=False):
     """
     Decompresses list of files, and deletes compressed
@@ -286,6 +300,7 @@ def decompress_files(local_file_list, keep_original=False):
     """
     for f in local_file_list:
         extract_file(f, keep_original)
+
 
 def shorten_timestamp(time_string):
     """
@@ -304,6 +319,7 @@ def shorten_timestamp(time_string):
     year = str(time_info.tm_year)
     return year
 
+
 def print_data(data, org_name):
     """
     Prints info from dict. <data> in a specific format.
@@ -313,7 +329,8 @@ def print_data(data, org_name):
     """
     print("\nQUERY RESULTS FOR '{}'\n".format(org_name))
     dict_to_get = {}
-    for query_cat, v in sorted(iter(data.items()), key=lambda k_v: k_v[1]["catID"]):
+    for query_cat, v in sorted(iter(data.items()),
+                               key=lambda k_v: k_v[1]["catID"]):
         if not v["results"]:
             continue
         catID = v["catID"]
@@ -321,7 +338,8 @@ def print_data(data, org_name):
         print(" [{}]: {} ".format(catID, query_cat).center(80, "="))
         results = v["results"]
         for sub_cat, items in sorted(iter(results.items()),
-                                     key=lambda sub_cat_items: (sub_cat_items[0], sub_cat_items[1])):
+                                     key=lambda sub_cat_items:
+                                     (sub_cat_items[0], sub_cat_items[1])):
             print("{}:".format(sub_cat))
             for index, i in sorted(items.items()):
                 dict_to_get[catID][index] = i["url"]
@@ -335,8 +353,10 @@ def print_data(data, org_name):
         print()  # padding
     return dict_to_get
 
+
 def get_user_choice():
-    choice = input("Enter file selection ('q' to quit, 'usage' to review syntax):\n>")
+    choice = input("Enter file selection ('q' to quit, "
+                   "'usage' to review syntax):\n>")
     if choice == "usage":
         print()
         print(select_blurb)
@@ -346,6 +366,7 @@ def get_user_choice():
         cleanExit()
     else:
         return choice
+
 
 def parse_selection(user_input):
     """
@@ -358,7 +379,8 @@ def parse_selection(user_input):
     parts = user_input.split(";")
     for p in parts:
         if len(p.split(":")) > 2:
-            cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(p))
+            cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'"
+                      .format(p))
         category, indices = p.split(":")
         category = int(category)
         selections[category] = []
@@ -371,11 +393,13 @@ def parse_selection(user_input):
                 try:
                     start, stop = list(map(int, i.split("-")))
                 except:
-                    cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'".format(i))
+                    cleanExit("FATAL ERROR: can't parse desired "
+                              "input\n?-->'{}'".format(i))
                 add_range = list(range(start, stop + 1))
                 for e in add_range:
                     cat_list.append(e)
     return selections
+
 
 def url_format_checker(u):
     """
@@ -393,6 +417,7 @@ def url_format_checker(u):
     if "url=" in u:
         u = u.split("url=")[-1]  # take the bit after the prepended string
     return u
+
 
 def get_org_name(xml_file):
     """
@@ -416,6 +441,7 @@ def get_org_name(xml_file):
         return org_name
     except TypeError:  # org_line still None
         return None
+
 
 def is_xml(filename):
     """
@@ -441,6 +467,7 @@ def is_xml(filename):
         else:  # hopefully all other file types
             return False
 
+
 def hidden_xml_check(file_list):
     """
     Checks a file list for any files that are actually XML error files,
@@ -450,7 +477,7 @@ def hidden_xml_check(file_list):
     """
     for f in list(file_list):  # iterate over copy
         if is_xml(f):
-            if not f.lower().endswith("xml"):  # in case it was supposed to be XML
+            if not f.lower().endswith("xml"):  # not recognized properly
                 print("ERROR: '{}' appears to be malformed and will be left "
                       "unmodified.".format(f))
                 file_list.remove(f)  # don't try to process downstream
@@ -500,7 +527,6 @@ organism name is required.
 
 # /USAGE //////////////////////////////////////////////////////////////////////
 """
-
 
 long_blurb = """
 # USAGE ///////////////////////////////////////////////////////////////////////
@@ -565,8 +591,8 @@ parser.add_argument("organism_abbreviation", nargs='?',
                          "JGI as 'Nemve1'. The appropriate abbreviation may be "
                          "found by searching for the organism on JGI; the name "
                          "used in the URL of the 'Info' page for that organism "
-                         "is the correct abbreviation. The full URL may also be "
-                         "used for this argument")
+                         "is the correct abbreviation. The full URL may also "
+                         "be used for this argument")
 parser.add_argument("-x", "--xml", nargs='?', const=1,
                     help="specify a local xml file for the query instead of "
                          "retrieving a new copy from JGI")
@@ -575,9 +601,9 @@ parser.add_argument("-c", "--configure", action='store_true',
                          "user/password configuration")
 parser.add_argument("-s", "--syntax_help", action='store_true')
 parser.add_argument("-f", "--filter_files", action='store_true',
-                    help="filter organism results by config "
-                         "categories instead of reporting all files listed by JGI "
-                         "for the query (work in progress)")
+                    help="filter organism results by config categories instead "
+                         "of reporting all files listed by JGI for the query "
+                         "(work in progress)")
 parser.add_argument("-u", "--usage", action='store_true',
                     help="print verbose usage information and exit")
 
@@ -632,8 +658,8 @@ USER = config_info["user"]
 PASSWORD = config_info["password"]
 
 # Set curl login string using user and password as per https://goo.gl/oppZ2a
-LOGIN_STRING = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii'\
-               ' login={}\&password={} -b cookies -c cookies >'\
+LOGIN_STRING = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii' \
+               ' login={}\&password={} -b cookies -c cookies >' \
                ' /dev/null'.format(USER, PASSWORD)
 
 # Get organism name for query
@@ -656,8 +682,8 @@ except AttributeError:  # not in address form, assume string is organism name
     organism = org_input
 
 # URL where remote XML file should be, if it exists
-org_url = ("http://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism={}"
-           .format(organism))
+org_url = ("http://genome.jgi.doe.gov/ext-api/downloads/get-directory?"
+           "organism={}".format(organism))
 
 # Display sample usage
 print(long_blurb)
@@ -679,8 +705,8 @@ else:  # fetch XML file from JGI
     try:  # fails if unable to contact server
         subprocess.check_output(LOGIN_STRING, shell=True)
     except subprocess.CalledProcessError as error:
-        cleanExit("Couldn't connect with server. Please check Internet connection "
-                  "and retry.")
+        cleanExit("Couldn't connect with server. Please check Internet "
+                  "connection and retry.")
     subprocess.call(xml_address, shell=True)
 
 # Parse xml file for content to download
@@ -694,8 +720,8 @@ try:
     xml_root = xml_in.getroot()
 except ET.ParseError:  # organism not found/xml file contains errors
     cleanExit("Cannot parse XML file or no organism match found.\n"
-              "Ensure remote file exists and has content at the following address:\n"
-              "{}".format(org_url))
+              "Ensure remote file exists and has content at the "
+              "following address:\n{}".format(org_url))
 
 # Get categories from config (including possible user additions)
 DESIRED_CATEGORIES = config_info["categories"]
@@ -729,7 +755,7 @@ for k, v in sorted(ids_dict.items()):
 # Calculate and display total size of selected data
 total_size = sum([file_sizes[url] for url in urls_to_get])
 # adjusted = total_size/1e6  # bytes to MB
-adjusted = total_size/(1024 * 1024)  # bytes to MB
+adjusted = total_size / (1024 * 1024)  # bytes to MB
 if adjusted < 1:
     adjusted = total_size / 1024
     unit = "KB"
@@ -751,11 +777,12 @@ for url in urls_to_get:
     url = url_format_checker(url)
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
-    download_command = 'curl http://genome.jgi.doe.gov{} -b cookies'\
+    download_command = 'curl http://genome.jgi.doe.gov{} -b cookies' \
                        ' -c cookies > {}'.format(url, filename)
-    print('Downloading \'{}\' using command:\n{}'.format(filename, download_command))
-# The next line doesn't appear to be needed to refresh the cookies.
-#    subprocess.call(login, shell=True)
+    print('Downloading \'{}\' using command:\n{}'
+          .format(filename, download_command))
+    # The next line doesn't appear to be needed to refresh the cookies.
+    #    subprocess.call(login, shell=True)
     subprocess.call(download_command, shell=True)
 
 print('Finished downloading all files.')
@@ -766,8 +793,8 @@ downloaded_files = hidden_xml_check(downloaded_files)
 
 # Kindly offer to unpack files, if files remain after error check
 if downloaded_files:
-    decompress = input('Decompress all downloaded files? '
-                       '(y/n/k=decompress and keep original): ')
+    decompress = input(("Decompress all downloaded files? "
+                        "(y/n/k=decompress and keep original): "))
     if decompress != "n":
         if decompress == "k":
             keep_original = True
@@ -779,7 +806,7 @@ if downloaded_files:
 # Clean up and exit
 # "cookies" file is always created
 keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
-                      .format(xml_index_filename))
+                  .format(xml_index_filename))
 if keep_temp.lower() not in "y, yes":
     cleanExit()
 else:
