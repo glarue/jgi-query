@@ -76,13 +76,12 @@ def get_user_info():
     user_info = {"user": user, "password": pw}
     while True:  # catch invalid responses
         choice = input(input_blurb)
-        if choice.lower() == "r":
-            user_info = get_user_info()
-            return user_info
-        if choice.lower() == "n":
-            sys.exit("Exiting now.")
         if choice.lower() == "y":
             return user_info
+        elif choice.lower() == "n":
+            sys.exit("Exiting now.")
+        elif choice.lower() == "r":
+            user_info = get_user_info()
 
 
 def make_config(config_path, config_info):
