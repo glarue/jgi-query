@@ -657,9 +657,9 @@ USER = config_info["user"]
 PASSWORD = config_info["password"]
 
 # Set curl login string using user and password as per https://goo.gl/oppZ2a
-LOGIN_STRING = 'curl https://signon.jgi.doe.gov/signon/create --data-ascii' \
-               ' login={}\&password={} -b cookies -c cookies >' \
-               ' /dev/null'.format(USER, PASSWORD)
+LOGIN_STRING = ("curl https://signon.jgi.doe.gov/signon/create --data-ascii "
+                "login={}\&password={} -b cookies -c cookies > "
+                "/dev/null".format(USER, PASSWORD))
 
 # Get organism name for query
 org_input = args.organism_abbreviation
@@ -693,12 +693,12 @@ if args.xml:
     local_xml = True  # global referenced by cleanExit()
     xml_arg = args.xml
     if xml_arg == 1:  # --xml flag used without argument
-        xml_index_filename = '{}_jgi_index.xml'.format(organism)
+        xml_index_filename = "{}_jgi_index.xml".format(organism)
     else:
         xml_index_filename = xml_arg
 else:  # fetch XML file from JGI
     local_xml = False
-    xml_index_filename = '{}_jgi_index.xml'.format(organism)
+    xml_index_filename = "{}_jgi_index.xml".format(organism)
     xml_address = ("curl {} -b cookies -c cookies > {}"
                    .format(org_url, xml_index_filename))
     try:  # fails if unable to contact server
@@ -776,15 +776,15 @@ for url in urls_to_get:
     url = url_format_checker(url)
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
-    download_command = 'curl http://genome.jgi.doe.gov{} -b cookies' \
-                       ' -c cookies > {}'.format(url, filename)
-    print('Downloading \'{}\' using command:\n{}'
+    download_command = ("curl http://genome.jgi.doe.gov{} -b cookies "
+                        "-c cookies > {}".format(url, filename))
+    print("Downloading '{}' using command:\n{}"
           .format(filename, download_command))
     # The next line doesn't appear to be needed to refresh the cookies.
     #    subprocess.call(login, shell=True)
     subprocess.call(download_command, shell=True)
 
-print('Finished downloading all files.')
+print("Finished downloading all files.")
 
 # Check files for failed downloads (in the form of XML error files
 # masquerading as requested files)
@@ -809,6 +809,6 @@ keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
 if keep_temp.lower() not in "y, yes":
     cleanExit()
 else:
-    print('Leaving temporary files intact and exiting.')
+    print("Leaving temporary files intact and exiting.")
 
 sys.exit(0)
