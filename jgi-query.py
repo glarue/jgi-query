@@ -158,7 +158,7 @@ def xml_hunt(xml_file):
 
 def format_found(d, filter_found=False):
     """
-    Reformats the output from recursive_hunt_all()
+    Reformats the output from xml_hunt()
 
     """
     output = {}
@@ -235,6 +235,11 @@ def get_sizes(d, sizes_by_url=None):
 
 
 def cleanExit(exit_message=None):
+    """
+    Perform a sys.exit() while removing temporary files and
+    informing the user.
+
+    """
     to_remove = ["cookies"]
     if not local_xml:  # don't delete xml file if supplied by user
         to_remove.append(xml_index_filename)
@@ -254,7 +259,7 @@ def extract_file(file_path, keep_compressed=False):
     """
     Native Python file decompression for tar.gz and .gz files.
 
-    To do: implement .zip decompression
+    TODO: implement .zip decompression
 
     """
     tar_pattern = 'tar.gz$'  # matches tar.gz
@@ -321,7 +326,7 @@ def shorten_timestamp(time_string):
 
 def print_data(data, org_name):
     """
-    Prints info from dict. <data> in a specific format.
+    Prints info from dictionary data in a specific format.
     Also returns a dict with url information for every file
     in desired categories.
 
@@ -354,6 +359,10 @@ def print_data(data, org_name):
 
 
 def get_user_choice():
+    """
+    Get user file selection choice(s)
+
+    """
     choice = input("Enter file selection ('q' to quit, "
                    "'usage' to review syntax):\n>")
     if choice == "usage":
@@ -688,6 +697,7 @@ org_url = ("http://genome.jgi.doe.gov/ext-api/downloads/get-directory?"
 print(long_blurb)
 print()  # padding
 
+
 # Get xml index of files, using existing local file or curl API
 if args.xml:
     local_xml = True  # global referenced by cleanExit()
@@ -708,6 +718,7 @@ else:  # fetch XML file from JGI
                   "connection and retry.")
     subprocess.call(xml_address, shell=True)
 
+
 # Parse xml file for content to download
 xml_root = None
 if os.path.getsize(xml_index_filename) == 0:  # happens if user and/or pw wrong
@@ -722,14 +733,19 @@ except ET.ParseError:  # organism not found/xml file contains errors
               "Ensure remote file exists and has content at the "
               "following address:\n{}".format(org_url))
 
+
 # Get categories from config (including possible user additions)
+# Will only be used if --filter_files flag
 DESIRED_CATEGORIES = config_info["categories"]
+
 
 # Choose between different XML parsers
 if args.filter_files:  # user wants only those files in <desired_categories>
     file_list = get_file_list(xml_index_filename, filter_categories=True)
 else:  # return all files found
     file_list = get_file_list(xml_index_filename)
+
+
 # Check if file has any categories of interest
 if not any(v["results"] for v in list(file_list.values())):
     print(("ERROR: no results found for '{}' in any of the following "
@@ -737,12 +753,11 @@ if not any(v["results"] for v in list(file_list.values())):
            .format(organism, "\n".join(DESIRED_CATEGORIES))))
     cleanExit()
 
-file_sizes = get_sizes(file_list, sizes_by_url={})
 
 # Ask user which files to download from xml
 url_dict = print_data(file_list, organism)
-
 user_choice = get_user_choice()
+
 
 # Retrieve user-selected file urls from dict
 ids_dict = parse_selection(user_choice)
@@ -751,9 +766,10 @@ for k, v in sorted(ids_dict.items()):
     for i in v:
         urls_to_get.append(url_dict[k][i])
 
+
 # Calculate and display total size of selected data
+file_sizes = get_sizes(file_list, sizes_by_url={})
 total_size = sum([file_sizes[url] for url in urls_to_get])
-# adjusted = total_size/1e6  # bytes to MB
 adjusted = total_size / (1024 * 1024)  # bytes to MB
 if adjusted < 1:
     adjusted = total_size / 1024
@@ -763,11 +779,12 @@ elif adjusted < 1024:
 else:
     adjusted /= 1024
     unit = "GB"
-size_string = "{:.2f} {}".format(adjusted, unit)
+size_string = "{:.2f} {}".format(adjusted, unit)  # formatted string for display
 print(("Total download size of selected files: {}".format(size_string)))
 download = input("Continue? (y/n): ")
 if download.lower() != "y":
     cleanExit("ABORTING DOWNLOAD")
+
 
 # Run curl commands to retrieve selected files
 # Make sure the URL formats conforms to the Genome Portal format
