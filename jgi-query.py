@@ -492,6 +492,26 @@ def hidden_xml_check(file_list):
     return file_list
 
 
+def byte_convert(byte_size):
+    """
+    Converts a number of bytes to a more human-readable
+    format.
+
+    """
+    # Calculate and display total size of selected data
+    adjusted = byte_size / (1024 * 1024)  # bytes to MB
+    if adjusted < 1:
+        adjusted = byte_size / 1024
+        unit = "KB"
+    elif adjusted < 1024:
+        unit = "MB"
+    else:
+        adjusted /= 1024
+        unit = "GB"
+    size_string = "{:.2f} {}".format(adjusted, unit)
+    return size_string
+
+
 # /FUNCTIONS
 
 # BLURBS
@@ -770,16 +790,7 @@ for k, v in sorted(ids_dict.items()):
 # Calculate and display total size of selected data
 file_sizes = get_sizes(file_list, sizes_by_url={})
 total_size = sum([file_sizes[url] for url in urls_to_get])
-adjusted = total_size / (1024 * 1024)  # bytes to MB
-if adjusted < 1:
-    adjusted = total_size / 1024
-    unit = "KB"
-elif adjusted < 1024:
-    unit = "MB"
-else:
-    adjusted /= 1024
-    unit = "GB"
-size_string = "{:.2f} {}".format(adjusted, unit)  # formatted string for display
+size_string = byte_convert(total_size)
 print(("Total download size of selected files: {}".format(size_string)))
 download = input("Continue? (y/n): ")
 if download.lower() != "y":
