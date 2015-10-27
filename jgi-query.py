@@ -290,8 +290,9 @@ def extract_file(file_path, keep_compressed=False):
             for l in f:
                 out.write(l)
     else:
-        raise ValueError("No decompression implemented for '{}'"
-                         .format(file_path))
+        print("Skipped decompression for '{}'"
+              .format(file_path))
+        return
     if not keep_compressed:
         os.remove(file_path)
 
