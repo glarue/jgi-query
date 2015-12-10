@@ -1,3 +1,5 @@
+# CURRENT STATUS (12/10/2015): JGI has changed their cURL API syntax, and it appears to have broken the functon of jgi-query. I've submitted a support ticket and will push an update as soon as I hear back.
+
 # jgi-query
 A command-line tool for querying and downloading from the [Joint Genome Institute (JGI)](http://genome.jgi-psf.org/) online database. Useful for accessing JGI data from command-line-only resources such as remote servers, or as a lightweight alternative to JGI's other [GUI-based download tools](http://genome.jgi-psf.org/help/download.jsf).
 
