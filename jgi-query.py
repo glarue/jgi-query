@@ -687,9 +687,18 @@ USER = config_info["user"]
 PASSWORD = config_info["password"]
 
 # Set curl login string using user and password as per https://goo.gl/oppZ2a
-LOGIN_STRING = ("curl https://signon.jgi.doe.gov/signon/create --data-ascii "
-                "login={}\&password={} -b cookies -c cookies > "
-                "/dev/null".format(USER, PASSWORD))
+
+# Old syntax
+# LOGIN_STRING = ("curl https://signon.jgi.doe.gov/signon/create --data-ascii "
+#                 "login={}\&password={} -b cookies -c cookies > "
+#                 "/dev/null".format(USER, PASSWORD))
+
+# New syntax
+LOGIN_STRING = ("curl 'https://signon.jgi.doe.gov/signon/create' "
+                "--data-urlencode 'login={}' "
+                "--data-urlencode 'password={}' "
+                "-c cookies > /dev/null"
+                .format(USER, PASSWORD))
 
 # Get organism name for query
 org_input = args.organism_abbreviation
@@ -730,7 +739,13 @@ if args.xml:
 else:  # fetch XML file from JGI
     local_xml = False
     xml_index_filename = "{}_jgi_index.xml".format(organism)
-    xml_address = ("curl {} -b cookies -c cookies > {}"
+
+    # Old syntax
+    # xml_address = ("curl {} -b cookies -c cookies > {}"
+    #                .format(org_url, xml_index_filename))
+
+    # New syntax
+    xml_address = ("curl '{}' -b cookies > {}"
                    .format(org_url, xml_index_filename))
     try:  # fails if unable to contact server
         subprocess.check_output(LOGIN_STRING, shell=True)
