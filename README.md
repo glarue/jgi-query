@@ -4,7 +4,7 @@ A command-line tool for querying and downloading from the [Joint Genome Institut
 ### Dependencies
 - A [user account with JGI](http://contacts.jgi-psf.org/registration/new) (free)
 - [cURL](http://curl.haxx.se/), required by the JGI download API
-- [Python](https://www.python.org/downloads/) 3.x (current development) or 2.7.x (deprecated but provided)
+- [Python](https://www.python.org/downloads/) 3.x (current development) or 2.7.x (deprecated but provided -- now *significantly outdated*)
 
 ### Installation
 1. Download `jgi-query.py`
