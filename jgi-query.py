@@ -745,7 +745,7 @@ else:  # fetch XML file from JGI
     #                .format(org_url, xml_index_filename))
 
     # New syntax
-    xml_address = ("curl '{}' -b cookies > {}"
+    xml_address = ("curl -L '{}' -b cookies > {}"
                    .format(org_url, xml_index_filename))
     try:  # fails if unable to contact server
         subprocess.check_output(LOGIN_STRING, shell=True)
