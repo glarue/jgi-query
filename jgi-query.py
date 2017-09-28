@@ -745,7 +745,7 @@ else:  # fetch XML file from JGI
     #                .format(org_url, xml_index_filename))
 
     # New syntax
-    xml_address = ("curl -L '{}' -b cookies > {}"
+    xml_address = ("curl '{}' -L -b cookies > {}"
                    .format(org_url, xml_index_filename))
     try:  # fails if unable to contact server
         subprocess.check_output(LOGIN_STRING, shell=True)
@@ -821,7 +821,7 @@ for url in urls_to_get:
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
     download_command = ("curl http://genome.jgi.doe.gov{} -b cookies "
-                        "-c cookies > {}".format(url, filename))
+                        "-c cookies -L > {}".format(url, filename))
     print("Downloading '{}' using command:\n{}"
           .format(filename, download_command))
     # The next line doesn't appear to be needed to refresh the cookies.
