@@ -365,7 +365,7 @@ def get_user_choice():
 
     """
     choice = input("Enter file selection ('q' to quit, "
-                   "'usage' to review syntax):\n>")
+                   "'usage' to review syntax, 'a' for all):\n> ")
     if choice == "usage":
         print()
         print(select_blurb)
@@ -795,12 +795,18 @@ url_dict = print_data(file_list, organism)
 user_choice = get_user_choice()
 
 
-# Retrieve user-selected file urls from dict
-ids_dict = parse_selection(user_choice)
-urls_to_get = []
-for k, v in sorted(ids_dict.items()):
-    for i in v:
-        urls_to_get.append(url_dict[k][i])
+urls_to_get = []    
+
+# special case for downloading all available files
+if user_choice == 'a':
+    for k, v in sorted(url_dict.items()):
+        urls_to_get.extend(v.values())
+else:
+    # Retrieve user-selected file urls from dict
+    ids_dict = parse_selection(user_choice)
+    for k, v in sorted(ids_dict.items()):
+        for i in v:
+            urls_to_get.append(url_dict[k][i])
 
 
 # Calculate and display total size of selected data
