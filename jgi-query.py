@@ -823,10 +823,11 @@ if download.lower() != "y":
 # Make sure the URL formats conforms to the Genome Portal format
 downloaded_files = []
 for url in urls_to_get:
-    url = url_format_checker(url)
+    # url = url_format_checker(url)
+    url = url.replace('&amp;', '&')
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
-    download_command = ("curl http://genome.jgi.doe.gov{} -b cookies "
+    download_command = ("curl 'https://genome.jgi.doe.gov{}' -b cookies "
                         "-c cookies -L > {}".format(url, filename))
     print("Downloading '{}' using command:\n{}"
           .format(filename, download_command))
