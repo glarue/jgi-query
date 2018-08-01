@@ -694,7 +694,7 @@ PASSWORD = config_info["password"]
 #                 "/dev/null".format(USER, PASSWORD))
 
 # New syntax
-LOGIN_STRING = ("curl 'https://signon.jgi.doe.gov/signon/create' "
+LOGIN_STRING = ("curl 'https://signon-old.jgi.doe.gov/signon/create' "
                 "--data-urlencode 'login={}' "
                 "--data-urlencode 'password={}' "
                 "-c cookies > /dev/null"
@@ -720,7 +720,7 @@ except AttributeError:  # not in address form, assume string is organism name
     organism = org_input
 
 # URL where remote XML file should be, if it exists
-org_url = ("http://genome.jgi.doe.gov/ext-api/downloads/get-directory?"
+org_url = ("https://genome.jgi.doe.gov/ext-api/downloads/get-directory?"
            "organism={}".format(organism))
 
 # Display sample usage
