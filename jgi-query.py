@@ -234,7 +234,7 @@ def get_sizes(d, sizes_by_url=None):
     return sizes_by_url
 
 
-def cleanExit(exit_message=None):
+def clean_exit(exit_message=None):
     """
     Perform a sys.exit() while removing temporary files and
     informing the user.
@@ -372,7 +372,7 @@ def get_user_choice():
         print()
         return get_user_choice()
     elif choice.lower() in ("q", "quit", "exit"):
-        cleanExit()
+        clean_exit()
     else:
         return choice
 
@@ -388,7 +388,7 @@ def parse_selection(user_input):
     parts = user_input.split(";")
     for p in parts:
         if len(p.split(":")) > 2:
-            cleanExit("FATAL ERROR: can't parse desired input\n?-->'{}'"
+            clean_exit("FATAL ERROR: can't parse desired input\n?-->'{}'"
                       .format(p))
         category, indices = p.split(":")
         category = int(category)
@@ -402,7 +402,7 @@ def parse_selection(user_input):
                 try:
                     start, stop = list(map(int, i.split("-")))
                 except:
-                    cleanExit("FATAL ERROR: can't parse desired "
+                    clean_exit("FATAL ERROR: can't parse desired "
                               "input\n?-->'{}'".format(i))
                 add_range = list(range(start, stop + 1))
                 for e in add_range:
@@ -730,7 +730,7 @@ print()  # padding
 
 # Get xml index of files, using existing local file or curl API
 if args.xml:
-    local_xml = True  # global referenced by cleanExit()
+    local_xml = True  # global referenced by clean_exit()
     xml_arg = args.xml
     if xml_arg == 1:  # --xml flag used without argument
         xml_index_filename = "{}_jgi_index.xml".format(organism)
@@ -750,7 +750,7 @@ else:  # fetch XML file from JGI
     try:  # fails if unable to contact server
         subprocess.check_output(LOGIN_STRING, shell=True)
     except subprocess.CalledProcessError as error:
-        cleanExit("Couldn't connect with server. Please check Internet "
+        clean_exit("Couldn't connect with server. Please check Internet "
                   "connection and retry.")
     subprocess.call(xml_address, shell=True)
 
@@ -759,13 +759,13 @@ else:  # fetch XML file from JGI
 xml_root = None
 if os.path.getsize(xml_index_filename) == 0:  # happens if user and/or pw wrong
     # os.remove(CONFIG_FILEPATH)  # instruct user to overwrite with -c instead
-    cleanExit("Invalid username/password combination.\n"
+    clean_exit("Invalid username/password combination.\n"
               "Please restart script with flag '-c' to reconfigure credentials.")
 try:
     xml_in = ET.ElementTree(file=xml_index_filename)
     xml_root = xml_in.getroot()
 except ET.ParseError:  # organism not found/xml file contains errors
-    cleanExit("Cannot parse XML file or no organism match found.\n"
+    clean_exit("Cannot parse XML file or no organism match found.\n"
               "Ensure remote file exists and has content at the "
               "following address:\n{}".format(org_url))
 
@@ -787,7 +787,7 @@ if not any(v["results"] for v in list(file_list.values())):
     print(("ERROR: no results found for '{}' in any of the following "
            "categories:\n---\n{}\n---"
            .format(organism, "\n".join(DESIRED_CATEGORIES))))
-    cleanExit()
+    clean_exit()
 
 
 # Ask user which files to download from xml
@@ -816,7 +816,7 @@ size_string = byte_convert(total_size)
 print(("Total download size of selected files: {}".format(size_string)))
 download = input("Continue? (y/n): ")
 if download.lower() != "y":
-    cleanExit("ABORTING DOWNLOAD")
+    clean_exit("ABORTING DOWNLOAD")
 
 
 # Run curl commands to retrieve selected files
@@ -858,7 +858,7 @@ if downloaded_files:
 keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
                   .format(xml_index_filename))
 if keep_temp.lower() not in "y, yes":
-    cleanExit()
+    clean_exit()
 else:
     print("Leaving temporary files intact and exiting.")
 
