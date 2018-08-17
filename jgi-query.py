@@ -241,7 +241,7 @@ def clean_exit(exit_message=None):
 
     """
     to_remove = ["cookies"]
-    if not local_xml:  # don't delete xml file if supplied by user
+    if not LOCAL_XML:  # don't delete xml file if supplied by user
         to_remove.append(xml_index_filename)
     for f in to_remove:
         try:
@@ -730,14 +730,14 @@ print()  # padding
 
 # Get xml index of files, using existing local file or curl API
 if args.xml:
-    local_xml = True  # global referenced by clean_exit()
+    LOCAL_XML = True  # global referenced by clean_exit()
     xml_arg = args.xml
     if xml_arg == 1:  # --xml flag used without argument
         xml_index_filename = "{}_jgi_index.xml".format(organism)
     else:
         xml_index_filename = xml_arg
 else:  # fetch XML file from JGI
-    local_xml = False
+    LOCAL_XML = False
     xml_index_filename = "{}_jgi_index.xml".format(organism)
 
     # Old syntax
