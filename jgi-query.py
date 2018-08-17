@@ -755,6 +755,7 @@ else:  # fetch XML file from JGI
         'Retrieving information from JGI for query \'{}\' using command '
         '\'{}\'\n'.format(organism, xml_address))
     subprocess.call(xml_address, shell=True)
+    print()  # padding
 
 
 # Parse xml file for content to download
