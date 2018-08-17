@@ -564,7 +564,7 @@ long_blurb = """
 # following format:
 #     <category number>:<indices>;<category number>:<indices>;...
 
-# Indices may be a mixture of comma-separated values and hyphen-
+# <indices> may be a mixture of comma-separated values and hyphen-
 # separated ranges.
 
 # For example, consider the following results:
@@ -697,6 +697,7 @@ PASSWORD = config_info["password"]
 LOGIN_STRING = ("curl 'https://signon-old.jgi.doe.gov/signon/create' "
                 "--data-urlencode 'login={}' "
                 "--data-urlencode 'password={}' "
+                "-s "  # suppress status output
                 "-c cookies > /dev/null"
                 .format(USER, PASSWORD))
 
@@ -723,11 +724,6 @@ except AttributeError:  # not in address form, assume string is organism name
 org_url = ("https://genome.jgi.doe.gov/ext-api/downloads/get-directory?"
            "organism={}".format(organism))
 
-# Display sample usage
-print(long_blurb)
-print()  # padding
-
-
 # Get xml index of files, using existing local file or curl API
 if args.xml:
     LOCAL_XML = True  # global referenced by clean_exit()
@@ -736,6 +732,9 @@ if args.xml:
         xml_index_filename = "{}_jgi_index.xml".format(organism)
     else:
         xml_index_filename = xml_arg
+    print(
+        'Retrieving information from JGI for query '
+        '\'{}\' using local file \'{}\'\n'.format(organism, xml_index_filename))
 else:  # fetch XML file from JGI
     LOCAL_XML = False
     xml_index_filename = "{}_jgi_index.xml".format(organism)
@@ -752,15 +751,17 @@ else:  # fetch XML file from JGI
     except subprocess.CalledProcessError as error:
         clean_exit("Couldn't connect with server. Please check Internet "
                   "connection and retry.")
+    print(
+        'Retrieving information from JGI for query \'{}\' using command '
+        '\'{}\'\n'.format(organism, xml_address))
     subprocess.call(xml_address, shell=True)
 
 
 # Parse xml file for content to download
 xml_root = None
 if os.path.getsize(xml_index_filename) == 0:  # happens if user and/or pw wrong
-    # os.remove(CONFIG_FILEPATH)  # instruct user to overwrite with -c instead
-    clean_exit("Invalid username/password combination.\n"
-              "Please restart script with flag '-c' to reconfigure credentials.")
+    clean_exit("Invalid username/password combination (or other issue).\n"
+              "Restart script with flag '-c' to reconfigure credentials.")
 try:
     xml_in = ET.ElementTree(file=xml_index_filename)
     xml_root = xml_in.getroot()
