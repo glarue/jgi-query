@@ -776,10 +776,8 @@ DESIRED_CATEGORIES = config_info["categories"]
 
 
 # Choose between different XML parsers
-if args.filter_files:  # user wants only those files in <desired_categories>
-    file_list = get_file_list(xml_index_filename, filter_categories=True)
-else:  # return all files found
-    file_list = get_file_list(xml_index_filename)
+# if args.filter_files, user wants only those files in <desired_categories>
+file_list = get_file_list(xml_index_filename, filter_categories=args.filter_files)
 
 
 # Check if file has any categories of interest
