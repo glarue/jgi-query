@@ -234,14 +234,15 @@ def get_sizes(d, sizes_by_url=None):
     return sizes_by_url
 
 
-def clean_exit(exit_message=None):
+def clean_exit(exit_message=None, remove_temp=True):
     """
     Perform a sys.exit() while removing temporary files and
     informing the user.
 
     """
     to_remove = ["cookies"]
-    if not LOCAL_XML:  # don't delete xml file if supplied by user
+    # don't delete xml file if supplied by user
+    if not LOCAL_XML and remove_temp is True:
         to_remove.append(xml_index_filename)
     for f in to_remove:
         try:
@@ -372,7 +373,9 @@ def get_user_choice():
         print()
         return get_user_choice()
     elif choice.lower() in ("q", "quit", "exit"):
-        clean_exit()
+        remove_temp = input("Remove index file? (y/n): ")
+        remove_temp = remove_temp.lower() in ('y', 'yes', '')
+        clean_exit(remove_temp=remove_temp)
     else:
         return choice
 
@@ -828,7 +831,7 @@ for url in urls_to_get:
     filename = re.search('.+/(.+$)', url).group(1)
     downloaded_files.append(filename)
     download_command = ("curl 'https://genome.jgi.doe.gov{}' -b cookies "
-                        "-c cookies -L > {}".format(url, filename))
+                        "> {}".format(url, filename))
     print("Downloading '{}' using command:\n{}"
           .format(filename, download_command))
     # The next line doesn't appear to be needed to refresh the cookies.
