@@ -341,7 +341,7 @@ def print_data(data, org_name):
             continue
         catID = v["catID"]
         dict_to_get[catID] = {}
-        print(" [{}]: {} ".format(catID, query_cat).center(80, "="))
+        print(" {}: {} ".format(catID, query_cat).center(80, "="))
         results = v["results"]
         for sub_cat, items in sorted(iter(results.items()),
                                      key=lambda sub_cat_items:
@@ -349,7 +349,7 @@ def print_data(data, org_name):
             print("{}:".format(sub_cat))
             for index, i in sorted(items.items()):
                 dict_to_get[catID][index] = i["url"]
-                print_index = " [{}] ".format(str(index))
+                print_index = " {}:[{}] ".format(str(catID), str(index))
                 date = shorten_timestamp(i["timestamp"])
                 size_date = "[{}|{}]".format(i["size"], date)
                 filename = i["filename"]
