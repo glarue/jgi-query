@@ -516,6 +516,59 @@ def byte_convert(byte_size):
     return size_string
 
 
+def is_broken(filename):
+    if (
+        os.path.getsize(filename) == 0 or 
+        (is_xml(filename) and not filename.lower().endswith('xml'))
+    ):
+        return True
+    else:
+        return False
+
+
+def download_from_url(url, timeout=30, retry=0):
+    """
+    Attempts to download a file from JGI servers using cURL.
+
+    Returns a tuple of (filename, cURL command used, success boolean)
+    
+    """
+    url = url.replace('&amp;', '&')
+    filename = re.search('.+/(.+$)', url).group(1)
+    download_command = (
+        "curl -m {} 'https://genome.jgi.doe.gov{}' -b cookies "
+        "> {}".format(timeout, url, filename)
+    )
+    print("Downloading '{}' using command:\n{}"
+        .format(filename, download_command))
+    # The next line doesn't appear to be needed to refresh the cookies.
+    #    subprocess.call(login, shell=True)
+    subprocess.call(download_command, shell=True)
+    success = True
+    if is_broken(filename) and retry > 0:
+        success = False
+        # this may be needed if initial download fails
+        alt_cmd = download_command.replace('blocking=true', 'blocking=false')
+        current_retry = 1
+        while current_retry <= retry:
+            if current_retry % 2 == 1:
+                retry_cmd = alt_cmd
+            else:
+                retry_cmd = download_command
+            print(
+                "Trying '{}' again due to download error ({}/{}):\n{}"
+                .format(filename, current_retry, retry, retry_cmd)
+            )
+            # subprocess.call(LOGIN_STRING, shell=True)
+            subprocess.call(retry_cmd, shell=True)
+            if not is_broken(filename):
+                success = True
+                break
+            current_retry += 1
+            time.sleep(1)
+
+    return filename, download_command, success
+
 # /FUNCTIONS
 
 # BLURBS
@@ -638,6 +691,9 @@ parser.add_argument("-f", "--filter_files", action='store_true',
                          "(work in progress)")
 parser.add_argument("-u", "--usage", action='store_true',
                     help="print verbose usage information and exit")
+parser.add_argument("-r", "--retry_n", type=int, default=4,
+                    help=("number of times to retry downloading files with "
+                    "errors (0 to skip such files)"))
 
 # /ARG PARSER
 
@@ -816,33 +872,39 @@ else:
 file_sizes = get_sizes(file_list, sizes_by_url={})
 total_size = sum([file_sizes[url] for url in urls_to_get])
 size_string = byte_convert(total_size)
-print(("Total download size of selected files: {}".format(size_string)))
+num_files = len(urls_to_get)
+print(("Total download size for {} files: {}".format(num_files, size_string)))
 download = input("Continue? (y/n): ")
 if download.lower() != "y":
     clean_exit("ABORTING DOWNLOAD")
 
-
 # Run curl commands to retrieve selected files
 # Make sure the URL formats conforms to the Genome Portal format
 downloaded_files = []
+broken_files = []
 for url in urls_to_get:
-    # url = url_format_checker(url)
-    url = url.replace('&amp;', '&')
-    filename = re.search('.+/(.+$)', url).group(1)
-    downloaded_files.append(filename)
-    download_command = ("curl 'https://genome.jgi.doe.gov{}' -b cookies "
-                        "> {}".format(url, filename))
-    print("Downloading '{}' using command:\n{}"
-          .format(filename, download_command))
-    # The next line doesn't appear to be needed to refresh the cookies.
-    #    subprocess.call(login, shell=True)
-    subprocess.call(download_command, shell=True)
+    fn, cmd, success = download_from_url(url, retry=args.retry_n)
+    if not success:
+        broken_files.append(url)
+    else:
+        downloaded_files.append(fn)
 
-print("Finished downloading all files.")
+print("Finished downloading {} files.".format(len(downloaded_files)))
 
-# Check files for failed downloads (in the form of XML error files
-# masquerading as requested files)
-downloaded_files = hidden_xml_check(downloaded_files)
+if broken_files:
+    n_broken = len(broken_files)
+    retry_broken = input(
+        "{} files failed to download; retry them? (y/n): ".format(n_broken))
+    if retry_broken.lower() in ('yes', 'y'):
+        subprocess.call(LOGIN_STRING, shell=True)
+        for url in broken_files:
+            fn, cmd, success = download_from_url(url)
+            if success:
+                downloaded_files.append(fn)
+
+# # Check files for failed downloads (in the form of XML error files
+# # masquerading as requested files)
+# downloaded_files = hidden_xml_check(downloaded_files)
 
 # Kindly offer to unpack files, if files remain after error check
 if downloaded_files:
