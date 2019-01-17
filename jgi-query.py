@@ -174,7 +174,10 @@ def format_found(d, filter_found=False):
             parent = layers[-1]  # either -2 or -1 works well, != top
         if top not in output:
             output[top] = defaultdict(dict)
-        output[top][parent] = c
+        if parent not in output[top]:
+            output[top][parent] = c
+        else:
+            output[top][parent].extend(c)
     return output
 
 
@@ -195,9 +198,10 @@ def get_file_list(xml_file, filter_categories=False):
     category_id = 0
     for category, sub_cat in sorted(found.items()):
         c = category
-        category_id += 1
-        descriptors[c] = defaultdict(dict)
-        descriptors[c]["catID"] = category_id
+        if c not in descriptors:
+            category_id += 1
+            descriptors[c] = defaultdict(dict)
+            descriptors[c]["catID"] = category_id
         uid = 1
         for parent, children in sorted(sub_cat.items()):
             descriptors[c]["results"][parent] = defaultdict(dict)
@@ -548,32 +552,36 @@ def download_from_url(url, timeout=30, retry=0):
         "curl -m {} 'https://genome.jgi.doe.gov{}' -b cookies "
         "> {}".format(timeout, url, filename)
     )
-    print("Downloading '{}' using command:\n{}"
-        .format(filename, download_command))
-    # The next line doesn't appear to be needed to refresh the cookies.
-    #    subprocess.call(login, shell=True)
-    subprocess.run(download_command, shell=True)
-    success = True
-    if is_broken(filename) and retry > 0:
-        success = False
-        # this may be needed if initial download fails
-        alt_cmd = download_command.replace('blocking=true', 'blocking=false')
-        current_retry = 1
-        while current_retry <= retry:
-            if current_retry % 2 == 1:
-                retry_cmd = alt_cmd
-            else:
-                retry_cmd = download_command
-            print(
-                "Trying '{}' again due to download error ({}/{}):\n{}"
-                .format(filename, current_retry, retry, retry_cmd)
-            )
-            subprocess.run(retry_cmd, shell=True)
-            if not is_broken(filename):
-                success = True
-                break
-            current_retry += 1
-            time.sleep(1)
+    if os.path.isfile(filename) and not is_broken(filename):
+        success = True
+        print("Skipping existing file {}".format(filename))
+    else:
+        print("Downloading '{}' using command:\n{}"
+            .format(filename, download_command))
+        # The next line doesn't appear to be needed to refresh the cookies.
+        #    subprocess.call(login, shell=True)
+        subprocess.run(download_command, shell=True)
+        success = True
+        if is_broken(filename) and retry > 0:
+            success = False
+            # this may be needed if initial download fails
+            alt_cmd = download_command.replace('blocking=true', 'blocking=false')
+            current_retry = 1
+            while current_retry <= retry:
+                if current_retry % 2 == 1:
+                    retry_cmd = alt_cmd
+                else:
+                    retry_cmd = download_command
+                print(
+                    "Trying '{}' again due to download error ({}/{}):\n{}"
+                    .format(filename, current_retry, retry, retry_cmd)
+                )
+                subprocess.run(retry_cmd, shell=True)
+                if not is_broken(filename):
+                    success = True
+                    break
+                current_retry += 1
+                time.sleep(1)
 
     return filename, download_command, success
 
@@ -966,7 +974,7 @@ if user_choice in ('a', 'r'):
     for k, v in sorted(url_dict.items()):
         for u in v.values():
             if regex_filter:
-                fn = re.search('.+/(.+$)', u).group(1)
+                fn = re.search('.+/([^\/]+$)', u).group(1)
                 match = regex_filter.search(fn)
                 if not match:
                     continue
