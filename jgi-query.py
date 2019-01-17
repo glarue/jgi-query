@@ -243,7 +243,10 @@ def clean_exit(exit_message=None, remove_temp=True):
     to_remove = ["cookies"]
     # don't delete xml file if supplied by user
     if not LOCAL_XML and remove_temp is True:
-        to_remove.append(xml_index_filename)
+        try:
+            to_remove.append(xml_index_filename)
+        except NameError:
+            pass
     for f in to_remove:
         try:
             os.remove(f)
@@ -365,8 +368,10 @@ def get_user_choice():
     Get user file selection choice(s)
 
     """
-    choice = input("Enter file selection ('q' to quit, "
-                   "'usage' to review syntax, 'a' for all):\n> ")
+    choice = input(
+        "Enter file selection ('q' to quit, "
+        "'usage' to review syntax, 'a' for all, "
+        "'r' for regex-based filename matching):\n> ")
     if choice == "usage":
         print()
         print(select_blurb)
@@ -517,6 +522,10 @@ def byte_convert(byte_size):
 
 
 def is_broken(filename):
+    """
+    Rudimentary check to see if a file appears to be broken.
+    
+    """
     if (
         os.path.getsize(filename) == 0 or 
         (is_xml(filename) and not filename.lower().endswith('xml'))
@@ -543,7 +552,7 @@ def download_from_url(url, timeout=30, retry=0):
         .format(filename, download_command))
     # The next line doesn't appear to be needed to refresh the cookies.
     #    subprocess.call(login, shell=True)
-    subprocess.call(download_command, shell=True)
+    subprocess.run(download_command, shell=True)
     success = True
     if is_broken(filename) and retry > 0:
         success = False
@@ -559,8 +568,7 @@ def download_from_url(url, timeout=30, retry=0):
                 "Trying '{}' again due to download error ({}/{}):\n{}"
                 .format(filename, current_retry, retry, retry_cmd)
             )
-            # subprocess.call(LOGIN_STRING, shell=True)
-            subprocess.call(retry_cmd, shell=True)
+            subprocess.run(retry_cmd, shell=True)
             if not is_broken(filename):
                 success = True
                 break
@@ -568,6 +576,90 @@ def download_from_url(url, timeout=30, retry=0):
             time.sleep(1)
 
     return filename, download_command, success
+
+
+def get_regex():
+    """
+    Get regex pattern from user, compile and return.
+    
+    """
+    #TODO make this exit gracefully if user can't
+    # manage to get a working regex
+    compile_success = False
+    while compile_success is False:
+        pattern = input('Regex pattern: ')
+        try:
+            pattern = re.compile(pattern)
+            compile_success = True
+        except:
+            print('[!] ERROR: Regex pattern failed to compile.')
+
+    return re.compile(pattern)
+
+
+def retry_from_failed(login_cmd, fail_log, timeout=60, retries=3):
+    """
+    Try to download from URLs in a previously-generated log file.
+    
+    """
+    fail_log = open(fail_log, 'r')
+    url_list = fail_log.read().splitlines()
+    try:  # fails if unable to contact server
+        subprocess.check_output(login_cmd, shell=True)
+    except subprocess.CalledProcessError as error:
+        clean_exit("Couldn't connect with server. Please check Internet "
+                  "connection and retry.")
+    downloaded, failed = download_list(url_list)
+
+    print('Finished downloading {} files'.format(len(downloaded)))
+    if failed:
+        log_failed(organism, failed)
+    
+    return downloaded, failed
+
+
+def log_failed(organism, failed_urls):
+    """
+    Write failed URLs to a local log file.
+    
+    """
+    fail_log = '{}.failed.log'.format(organism)
+    print(
+        '{} failed downloads logged to {}'.format(len(failed_urls), fail_log))
+    # write failed URLs to local file
+    with open(fail_log, 'w') as f:
+        f.write('\n'.join(failed_urls))
+
+
+def download_list(url_list, timeout=120, retries=3):
+    """
+    Attempts download command on a list of partial file
+    URLs (completed by download_from_url()).
+
+    Returns a list of successfully-downloaded files and a
+    list of unsuccessful URLs
+    
+    """
+    # Run curl commands to retrieve selected files
+    # Make sure the URL formats conforms to the Genome Portal format
+    downloaded_files = []
+    broken_urls = []
+    subprocess.run(LOGIN_STRING, shell=True)
+    start_time = time.time()
+    for url in url_list:
+        current_time = time.time()
+        # refresh the session cookie every 5 minutes
+        if current_time - start_time > 300:
+            subprocess.run(LOGIN_STRING, shell=True)
+            start_time = time.time()
+        fn, cmd, success = download_from_url(
+            url, timeout=timeout, retry=retries)
+        if not success:
+            broken_urls.append(url)
+        else:
+            downloaded_files.append(fn)
+    
+    return downloaded_files, broken_urls
 
 # /FUNCTIONS
 
@@ -694,6 +786,9 @@ parser.add_argument("-u", "--usage", action='store_true',
 parser.add_argument("-r", "--retry_n", type=int, default=4,
                     help=("number of times to retry downloading files with "
                     "errors (0 to skip such files)"))
+parser.add_argument(
+    "-l", "--load_failed", type=str,
+    help="retry downloading from URLs listed in log file")
 
 # /ARG PARSER
 
@@ -760,6 +855,14 @@ LOGIN_STRING = ("curl 'https://signon-old.jgi.doe.gov/signon/create' "
                 "-c cookies > /dev/null"
                 .format(USER, PASSWORD))
 
+LOCAL_XML = False
+
+if args.load_failed:
+    logfile = args.load_failed
+    print("Reading URLs from \'{}\'".format(logfile))
+    retry_from_failed(LOGIN_STRING, logfile)
+    clean_exit("All files in log attempted.")
+
 # Get organism name for query
 org_input = args.organism_abbreviation
 if not org_input:
@@ -795,7 +898,6 @@ if args.xml:
         'Retrieving information from JGI for query '
         '\'{}\' using local file \'{}\'\n'.format(organism, xml_index_filename))
 else:  # fetch XML file from JGI
-    LOCAL_XML = False
     xml_index_filename = "{}_jgi_index.xml".format(organism)
 
     # Old syntax
@@ -813,7 +915,7 @@ else:  # fetch XML file from JGI
     print(
         'Retrieving information from JGI for query \'{}\' using command '
         '\'{}\'\n'.format(organism, xml_address))
-    subprocess.call(xml_address, shell=True)
+    subprocess.run(xml_address, shell=True)
     print()  # padding
 
 
@@ -853,13 +955,22 @@ if not any(v["results"] for v in list(file_list.values())):
 url_dict = print_data(file_list, organism)
 user_choice = get_user_choice()
 
-
 urls_to_get = []    
 
 # special case for downloading all available files
-if user_choice == 'a':
+# or filtering with a regular expression
+regex_filter = None
+if user_choice == 'r':
+    regex_filter = get_regex()
+if user_choice in ('a', 'r'):
     for k, v in sorted(url_dict.items()):
-        urls_to_get.extend(v.values())
+        for u in v.values():
+            if regex_filter:
+                fn = re.search('.+/(.+$)', u).group(1)
+                match = regex_filter.search(fn)
+                if not match:
+                    continue
+            urls_to_get.append(u)
 else:
     # Retrieve user-selected file urls from dict
     ids_dict = parse_selection(user_choice)
@@ -878,33 +989,22 @@ download = input("Continue? (y/n): ")
 if download.lower() != "y":
     clean_exit("ABORTING DOWNLOAD")
 
-# Run curl commands to retrieve selected files
-# Make sure the URL formats conforms to the Genome Portal format
-downloaded_files = []
-broken_files = []
-for url in urls_to_get:
-    fn, cmd, success = download_from_url(url, retry=args.retry_n)
-    if not success:
-        broken_files.append(url)
-    else:
-        downloaded_files.append(fn)
+downloaded_files, broken_files = download_list(
+    urls_to_get, retries=args.retry_n)
 
 print("Finished downloading {} files.".format(len(downloaded_files)))
 
+failed_urls = []
 if broken_files:
     n_broken = len(broken_files)
     retry_broken = input(
         "{} files failed to download; retry them? (y/n): ".format(n_broken))
     if retry_broken.lower() in ('yes', 'y'):
-        subprocess.call(LOGIN_STRING, shell=True)
-        for url in broken_files:
-            fn, cmd, success = download_from_url(url)
-            if success:
-                downloaded_files.append(fn)
+        downloaded_files, failed_urls = download_list(
+            broken_files, retries=0)
 
-# # Check files for failed downloads (in the form of XML error files
-# # masquerading as requested files)
-# downloaded_files = hidden_xml_check(downloaded_files)
+if failed_urls:
+    log_failed(organism, failed_urls)
 
 # Kindly offer to unpack files, if files remain after error check
 if downloaded_files:
