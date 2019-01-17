@@ -787,7 +787,7 @@ parser.add_argument("-r", "--retry_n", type=int, default=4,
                     help=("number of times to retry downloading files with "
                     "errors (0 to skip such files)"))
 parser.add_argument(
-    "-l", "--load_failed", type=str,
+    "-l", "--load_failed", type=str, metavar='logfile',
     help="retry downloading from URLs listed in log file")
 
 # /ARG PARSER
