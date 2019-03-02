@@ -29,6 +29,8 @@ In brief, `jgi-query.py` begins by using cURL to grab an XML file for the query 
 
 Main file categories in the report are numbered, as are files within each category. The selection syntax is `category_number`:`file_selection`, where `file_selection` is either a comma-separated list (e.g. `file1`, `file2`) or a contiguous range (e.g. `file1`-`file4`). For multiple parent categories and associated files, category/file list groupings are linked with semicolons (e.g. `category1`:`file1`,`file2`;`category2`:`file5`-`file8`).
 
+Additionally, there is a regex-based file selection option (enter "r" at the file selection prompt) which may be useful for selecting a large number of related files (see the [Python regex documentation](https://docs.python.org/3/library/re.html#re-syntax) for syntax information). For example, to retrieve all files with "AllModels" in their names, the regex query would be `.*AllModels.*` (no quotes).
+
 ### Sample output for _Nematostella vectensis_ (JGI abbreviation 'Nemve1')
 ```bash
 glarue@glarue-XPS-13 ~/Documents/Coding/Python/Research/jgi-query $ jgi-query.py Nemve1
@@ -100,7 +102,7 @@ Proteins:
 Transcripts:
  [4] transcripts.Nemve1FilteredModels1.fasta.gz----------------------[8 MB|2012]
 
-Enter file selection ('q' to quit, 'usage' to review syntax):
+Enter file selection ('q' to quit, 'usage' to review syntax, 'a' for all, 'r' for regex-based filename matching):
 >2:5;3:1
 Total download size of selected files: 11.23 MB
 Continue? (y/n): y
