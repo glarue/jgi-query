@@ -552,7 +552,11 @@ def download_from_url(url, timeout=30, retry=0):
         "curl -m {} 'https://genome.jgi.doe.gov{}' -b cookies "
         "> {}".format(timeout, url, filename)
     )
-    if os.path.isfile(filename) and not is_broken(filename):
+    if (
+        os.path.isfile(filename) and 
+        not is_broken(filename) and 
+        os.path.getsize(filename) > 0
+    ):
         success = True
         print("Skipping existing file {}".format(filename))
     else:
@@ -963,7 +967,7 @@ if not any(v["results"] for v in list(file_list.values())):
 url_dict = print_data(file_list, organism)
 user_choice = get_user_choice()
 
-urls_to_get = []    
+urls_to_get = set()
 
 # special case for downloading all available files
 # or filtering with a regular expression
@@ -978,23 +982,29 @@ if user_choice in ('a', 'r'):
                 match = regex_filter.search(fn)
                 if not match:
                     continue
-            urls_to_get.append(u)
+            urls_to_get.add(u)
 else:
     # Retrieve user-selected file urls from dict
     ids_dict = parse_selection(user_choice)
     for k, v in sorted(ids_dict.items()):
         for i in v:
-            urls_to_get.append(url_dict[k][i])
+            urls_to_get.add(url_dict[k][i])
 
 
 # Calculate and display total size of selected data
+urls_to_get = sorted(urls_to_get)
+filenames = [u.split('/')[-1] for u in urls_to_get]
 file_sizes = get_sizes(file_list, sizes_by_url={})
 total_size = sum([file_sizes[url] for url in urls_to_get])
 size_string = byte_convert(total_size)
 num_files = len(urls_to_get)
 print(("Total download size for {} files: {}".format(num_files, size_string)))
-download = input("Continue? (y/n): ")
-if download.lower() != "y":
+download = input("Continue? (y/n/[p]review files): ").lower()
+if download == "p":
+    while download == "p":
+        print('\n'.join(filenames))
+        download = input("Continue with download? (y/n/[p]review files): ").lower()
+if download != "y":
     clean_exit("ABORTING DOWNLOAD")
 
 downloaded_files, broken_files = download_list(
