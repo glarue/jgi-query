@@ -15,6 +15,7 @@ import argparse
 import tarfile
 import gzip
 import time
+import readline  # allows arrow keys to be used during input
 
 
 # FUNCTIONS
@@ -206,8 +207,8 @@ def get_file_list(xml_file, filter_categories=False):
         for parent, children in sorted(sub_cat.items()):
             descriptors[c]["results"][parent] = defaultdict(dict)
             results = descriptors[c]["results"][parent]
-            children = [e for e in children if 'filename' in e]
-            for child in sorted(children, key=lambda x: x['filename']):
+            unique_children = uniqueify(children)
+            for child in sorted(unique_children, key=lambda x: x['filename']):
                 try:
                     results[uid]
                 except KeyError:
@@ -218,7 +219,40 @@ def get_file_list(xml_file, filter_categories=False):
                     except KeyError:
                         continue
                 uid += 1
+
     return descriptors
+
+
+def uniqueify(children):
+    """
+    Takes a list of child XML elements (dicts of attribs) as 
+    returns a filtered list of only unique filenames for a given 
+    month/year timestamp (e.g. duplicates are allowed if month/year 
+    is different).
+    
+    """
+    unique = {}
+    for child in children:
+        try:
+            fn = child['filename']
+            date = fmt_timestamp(child['timestamp'])
+            date_string = (date.tm_mon, date.tm_year)
+            uid = (fn, date_string)
+        except KeyError:
+            continue
+        if fn not in unique:
+            unique[uid] = child
+        else:
+            existing = unique[uid].get('fileType', None)
+            if existing == 'Unknown':
+                existing = None
+            current = child.get('fileType', None)
+            if current == 'Unknown':
+                current = None
+            if current is not None and existing is None:
+                unique[uid] = child
+        
+    return unique.values()
 
 
 def get_sizes(d, sizes_by_url=None):
@@ -315,7 +349,7 @@ def decompress_files(local_file_list, keep_original=False):
         extract_file(f, keep_original)
 
 
-def shorten_timestamp(time_string):
+def fmt_timestamp(time_string):
     """
     Parses the timestamp string from an XML document
     of the form "Thu Feb 27 16:38:54 PST 2014"
@@ -329,11 +363,11 @@ def shorten_timestamp(time_string):
 
     # Get the desired time info
     time_info = time.strptime(time_string, "%a %b %d %H:%M:%S %Y")
-    year = str(time_info.tm_year)
-    return year
+    # year = str(time_info.tm_year)
+    return time_info
 
 
-def print_data(data, org_name):
+def print_data(data, org_name, display=True):
     """
     Prints info from dictionary data in a specific format.
     Also returns a dict with url information for every file
@@ -344,26 +378,30 @@ def print_data(data, org_name):
     dict_to_get = {}
     for query_cat, v in sorted(iter(data.items()),
                                key=lambda k_v: k_v[1]["catID"]):
+        print_list = []
         if not v["results"]:
             continue
         catID = v["catID"]
         dict_to_get[catID] = {}
-        print(" {}: {} ".format(catID, query_cat).center(80, "="))
+        print_list.append(" {}: {} ".format(catID, query_cat).center(80, "="))
         results = v["results"]
         for sub_cat, items in sorted(iter(results.items()),
                                      key=lambda sub_cat_items:
                                      (sub_cat_items[0], sub_cat_items[1])):
-            print("{}:".format(sub_cat))
+            print_list.append("{}:".format(sub_cat))
             for index, i in sorted(items.items()):
                 dict_to_get[catID][index] = i["url"]
                 print_index = " {}:[{}] ".format(str(catID), str(index))
-                date = shorten_timestamp(i["timestamp"])
-                size_date = "[{}|{}]".format(i["size"], date)
+                date = fmt_timestamp(i["timestamp"])
+                date_string = '{:02d}/{}'.format(date.tm_mon, date.tm_year)
+                size_date = "[{}|{}]".format(i["size"], date_string)
                 filename = i["filename"]
                 margin = 80 - (len(size_date) + len(print_index))
                 file_info = filename.ljust(margin, "-")
-                print("".join([print_index, file_info, size_date]))
-        print()  # padding
+                print_list.append("".join([print_index, file_info, size_date]))
+        if display is True:
+            print('\n'.join(print_list))
+            print()  # padding
     return dict_to_get
 
 
@@ -539,13 +577,14 @@ def is_broken(filename):
         return False
 
 
-def download_from_url(url, timeout=30, retry=0):
+def download_from_url(url, timeout=30, retry=0, min_file_bytes=20):
     """
     Attempts to download a file from JGI servers using cURL.
 
     Returns a tuple of (filename, cURL command used, success boolean)
     
     """
+    success = True
     url = url.replace('&amp;', '&')
     filename = re.search('.+/(.+$)', url).group(1)
     download_command = (
@@ -555,7 +594,7 @@ def download_from_url(url, timeout=30, retry=0):
     if (
         os.path.isfile(filename) and 
         not is_broken(filename) and 
-        os.path.getsize(filename) > 0
+        os.path.getsize(filename) > min_file_bytes
     ):
         success = True
         print("Skipping existing file {}".format(filename))
@@ -565,27 +604,29 @@ def download_from_url(url, timeout=30, retry=0):
         # The next line doesn't appear to be needed to refresh the cookies.
         #    subprocess.call(login, shell=True)
         subprocess.run(download_command, shell=True)
-        success = True
-        if is_broken(filename) and retry > 0:
+        if is_broken(filename):
             success = False
-            # this may be needed if initial download fails
-            alt_cmd = download_command.replace('blocking=true', 'blocking=false')
-            current_retry = 1
-            while current_retry <= retry:
-                if current_retry % 2 == 1:
-                    retry_cmd = alt_cmd
-                else:
-                    retry_cmd = download_command
-                print(
-                    "Trying '{}' again due to download error ({}/{}):\n{}"
-                    .format(filename, current_retry, retry, retry_cmd)
-                )
-                subprocess.run(retry_cmd, shell=True)
-                if not is_broken(filename):
-                    success = True
-                    break
-                current_retry += 1
-                time.sleep(1)
+            if retry > 0:
+                # success = False
+                # this may be needed if initial download fails
+                alt_cmd = download_command.replace(
+                    'blocking=true', 'blocking=false')
+                current_retry = 1
+                while current_retry <= retry:
+                    if current_retry % 2 == 1:
+                        retry_cmd = alt_cmd
+                    else:
+                        retry_cmd = download_command
+                    print(
+                        "Trying '{}' again due to download error ({}/{}):\n{}"
+                        .format(filename, current_retry, retry, retry_cmd)
+                    )
+                    subprocess.run(retry_cmd, shell=True)
+                    if not is_broken(filename):
+                        success = True
+                        break
+                    current_retry += 1
+                    time.sleep(1)
 
     return filename, download_command, success
 
@@ -795,12 +836,24 @@ parser.add_argument("-f", "--filter_files", action='store_true',
                          "(work in progress)")
 parser.add_argument("-u", "--usage", action='store_true',
                     help="print verbose usage information and exit")
-parser.add_argument("-r", "--retry_n", type=int, default=4,
+parser.add_argument("-n", "--retry_n", type=int, default=4,
                     help=("number of times to retry downloading files with "
                     "errors (0 to skip such files)"))
 parser.add_argument(
     "-l", "--load_failed", type=str, metavar='logfile',
     help="retry downloading from URLs listed in log file")
+parser.add_argument(
+    "-r", 
+    "--regex",
+    type=re.compile,  # convert to regex object
+    help='Regex pattern to use to auto-select and download '
+    'files (no interactive prompt)')
+parser.add_argument(
+    "-a",
+    "--all",
+    action="store_true",
+    help='Auto-select and download all files for query (no interactive prompt)'
+)
 
 # /ARG PARSER
 
@@ -810,6 +863,12 @@ if len(sys.argv) == 1:
     sys.exit(1)
 
 args = parser.parse_args()
+DIRECT_REGEX = args.regex
+GET_ALL = args.all
+if GET_ALL or DIRECT_REGEX:
+    INTERACTIVE = False
+else:
+    INTERACTIVE = True
 
 # Check if user wants query help
 if args.syntax_help:
@@ -963,17 +1022,30 @@ if not any(v["results"] for v in list(file_list.values())):
     clean_exit()
 
 
-# Ask user which files to download from xml
-url_dict = print_data(file_list, organism)
-user_choice = get_user_choice()
+# Decision tree depending on if non-interactive options given
+regex_filter = None
+user_choice = None
+display_info = True
+if GET_ALL:
+    user_choice = 'a'
+    display_info = False
+elif DIRECT_REGEX:
+    user_choice = 'r'
+    regex_filter = DIRECT_REGEX
+    display_info = False
+
+url_dict = print_data(file_list, organism, display=display_info)
+
+if not user_choice:
+    # Ask user which files to download from xml
+    user_choice = get_user_choice()
+    if user_choice == 'r':
+        regex_filter = get_regex()
 
 urls_to_get = set()
 
 # special case for downloading all available files
 # or filtering with a regular expression
-regex_filter = None
-if user_choice == 'r':
-    regex_filter = get_regex()
 if user_choice in ('a', 'r'):
     for k, v in sorted(url_dict.items()):
         for u in v.values():
@@ -999,33 +1071,34 @@ total_size = sum([file_sizes[url] for url in urls_to_get])
 size_string = byte_convert(total_size)
 num_files = len(urls_to_get)
 print(("Total download size for {} files: {}".format(num_files, size_string)))
-download = input("Continue? (y/n/[p]review files): ").lower()
-if download == "p":
-    while download == "p":
-        print('\n'.join(filenames))
-        download = input("Continue with download? (y/n/[p]review files): ").lower()
-if download != "y":
-    clean_exit("ABORTING DOWNLOAD")
+if INTERACTIVE:
+    download = input("Continue? (y/n/[p]review files): ").lower()
+    if download == "p":
+        while download == "p":
+            print('\n'.join(filenames))
+            download = input("Continue with download? (y/n/[p]review files): ").lower()
+    if download != "y":
+        clean_exit("ABORTING DOWNLOAD")
 
-downloaded_files, broken_files = download_list(
+downloaded_files, failed_urls = download_list(
     urls_to_get, retries=args.retry_n)
 
 print("Finished downloading {} files.".format(len(downloaded_files)))
 
 failed_urls = []
-if broken_files:
-    n_broken = len(broken_files)
+if failed_urls and INTERACTIVE:
+    n_broken = len(failed_urls)
     retry_broken = input(
         "{} files failed to download; retry them? (y/n): ".format(n_broken))
     if retry_broken.lower() in ('yes', 'y'):
         downloaded_files, failed_urls = download_list(
-            broken_files, retries=0)
+            failed_urls, retries=0)
 
 if failed_urls:
     log_failed(organism, failed_urls)
 
 # Kindly offer to unpack files, if files remain after error check
-if downloaded_files:
+if downloaded_files and INTERACTIVE:
     decompress = input(("Decompress all downloaded files? "
                         "(y/n/k=decompress and keep original): "))
     if decompress != "n":
@@ -1038,11 +1111,14 @@ if downloaded_files:
 
 # Clean up and exit
 # "cookies" file is always created
-keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
-                  .format(xml_index_filename))
-if keep_temp.lower() not in "y, yes":
-    clean_exit()
+if INTERACTIVE:
+    keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
+                    .format(xml_index_filename))
+    if keep_temp.lower() not in "y, yes":
+        clean_exit()
+    else:
+        print("Leaving temporary files intact and exiting.")
 else:
-    print("Leaving temporary files intact and exiting.")
+    clean_exit()
 
 sys.exit(0)
