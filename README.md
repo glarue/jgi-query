@@ -15,7 +15,7 @@ A command-line tool for querying and downloading from the [Joint Genome Institut
 
 #### Usage information
 
-```shell
+```
 usage: jgi-query.py [-h] [-x [XML]] [-c] [-s] [-f] [-u] [-n RETRY_N]
                     [-l logfile] [-r REGEX] [-a]
                     [organism_abbreviation]
