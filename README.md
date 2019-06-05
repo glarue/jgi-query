@@ -93,7 +93,7 @@ For programmatic use, `jgi-query` also has command-line arguments, `-a` and `-r`
 
 ### Sample output for _Nematostella vectensis_ ('Nemve1')
 
-```shell
+```
 ➜ python3 jgi-query.py Nemve1                                  
 Retrieving information from JGI for query 'Nemve1' using command 'curl 'https://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism=Nemve1' -L -b cookies > Nemve1_jgi_index.xml'
 
