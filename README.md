@@ -13,9 +13,9 @@ A command-line tool for querying and downloading from the [Joint Genome Institut
 2. Ensure that you're running the correct version of Python with `python --version`. If this reports Python 2.x, run the script using `python3` instead of `python`
 3. From the command line, run the script with the command `python jgi-query.py` to show usage information and further instructions
 
-
 #### Usage information
-```
+
+```shell
 usage: jgi-query.py [-h] [-x [XML]] [-c] [-s] [-f] [-u] [-n RETRY_N]
                     [-l logfile] [-r REGEX] [-a]
                     [organism_abbreviation]
@@ -92,6 +92,7 @@ For programmatic use, `jgi-query` also has command-line arguments, `-a` and `-r`
 `python3 jgi-query.py Schco3 -r 'FilteredModels1.*\.gff3\.gz$'`
 
 ### Sample output for _Nematostella vectensis_ ('Nemve1')
+
 ```shell
 ➜ python3 jgi-query.py Nemve1                                  
 Retrieving information from JGI for query 'Nemve1' using command 'curl 'https://genome.jgi.doe.gov/ext-api/downloads/get-directory?organism=Nemve1' -L -b cookies > Nemve1_jgi_index.xml'
@@ -153,4 +154,3 @@ Removing temp files and exiting
 ~ took 1m 17s 
 ➜ 
 ```
-
