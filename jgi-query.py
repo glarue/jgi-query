@@ -587,9 +587,10 @@ def download_from_url(url, timeout=30, retry=0, min_file_bytes=20):
     success = True
     url = url.replace('&amp;', '&')
     filename = re.search('.+/(.+$)', url).group(1)
+    url_prefix = "https://genome.jgi.doe.gov"
     download_command = (
-        "curl -m {} 'https://genome.jgi.doe.gov{}' -b cookies "
-        "> {}".format(timeout, url, filename)
+        "curl -m {} '{}{}' -b cookies "
+        "> {}".format(timeout, url_prefix, url, filename)
     )
     if (
         os.path.isfile(filename) and 
@@ -954,7 +955,7 @@ except AttributeError:  # not in address form, assume string is organism name
     organism = org_input
 
 # URL where remote XML file should be, if it exists
-org_url = ("https://genome.jgi.doe.gov/ext-api/downloads/get-directory?"
+org_url = ("https://genome.jgi.doe.gov/portal/ext-api/downloads/get-directory?"
            "organism={}".format(organism))
 
 # Get xml index of files, using existing local file or curl API
