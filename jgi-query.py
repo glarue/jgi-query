@@ -563,13 +563,14 @@ def byte_convert(byte_size):
     return size_string
 
 
-def is_broken(filename):
+def is_broken(filename, min_size_bytes=20):
     """
     Rudimentary check to see if a file appears to be broken.
     
     """
     if (
-        os.path.getsize(filename) == 0 or 
+        not os.path.isfile(filename) or
+        os.path.getsize(filename) < min_size_bytes or 
         (is_xml(filename) and not filename.lower().endswith('xml'))
     ):
         return True
@@ -592,11 +593,7 @@ def download_from_url(url, timeout=30, retry=0, min_file_bytes=20):
         "curl -m {} '{}{}' -b cookies "
         "> {}".format(timeout, url_prefix, url, filename)
     )
-    if (
-        os.path.isfile(filename) and 
-        not is_broken(filename) and 
-        os.path.getsize(filename) > min_file_bytes
-    ):
+    if not is_broken(filename, min_file_bytes):
         success = True
         print("Skipping existing file {}".format(filename))
     else:
@@ -605,7 +602,7 @@ def download_from_url(url, timeout=30, retry=0, min_file_bytes=20):
         # The next line doesn't appear to be needed to refresh the cookies.
         #    subprocess.call(login, shell=True)
         subprocess.run(download_command, shell=True)
-        if is_broken(filename):
+        if is_broken(filename, min_file_bytes):
             success = False
             if retry > 0:
                 # success = False
@@ -623,7 +620,7 @@ def download_from_url(url, timeout=30, retry=0, min_file_bytes=20):
                         .format(filename, current_retry, retry, retry_cmd)
                     )
                     subprocess.run(retry_cmd, shell=True)
-                    if not is_broken(filename):
+                    if not is_broken(filename, min_file_bytes):
                         success = True
                         break
                     current_retry += 1
@@ -1093,7 +1090,7 @@ if failed_urls and INTERACTIVE:
         "{} files failed to download; retry them? (y/n): ".format(n_broken))
     if retry_broken.lower() in ('yes', 'y'):
         downloaded_files, failed_urls = download_list(
-            failed_urls, retries=0)
+            failed_urls, retries=1)
 
 if failed_urls:
     log_failed(organism, failed_urls)
