@@ -653,6 +653,7 @@ def retry_from_failed(login_cmd, fail_log, timeout=60, retries=3):
     Try to download from URLs in a previously-generated log file.
     
     """
+    organism = os.path.basename(fail_log).split('.')[0]
     fail_log = open(fail_log, 'r')
     url_list = fail_log.read().splitlines()
     try:  # fails if unable to contact server
@@ -1083,7 +1084,6 @@ downloaded_files, failed_urls = download_list(
 
 print("Finished downloading {} files.".format(len(downloaded_files)))
 
-failed_urls = []
 if failed_urls and INTERACTIVE:
     n_broken = len(failed_urls)
     retry_broken = input(
