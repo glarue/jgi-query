@@ -947,8 +947,10 @@ if not org_input:
             sys.exit("No organism specified. Exiting now.")
     else:
         sys.exit("No organism specified. Exiting now.")
+org_regex = re.compile(r'\.jgi.+\.(?:gov|org).+\/(.+)\/(?!\/)')
 try:  # see if it's in address form
-    organism = re.search("\.jgi.+\.(?:gov|org)/(.+)/", org_input).group(1)
+    # organism = re.search("\.jgi.+\.(?:gov|org)/(.+)/", org_input).group(1)
+    organism = org_regex.search(org_input).group(1)
 except AttributeError:  # not in address form, assume string is organism name
     organism = org_input
 
