@@ -918,12 +918,15 @@ PASSWORD = config_info["password"]
 #                 "/dev/null".format(USER, PASSWORD))
 
 # New syntax
-LOGIN_STRING = ("curl 'https://signon-old.jgi.doe.gov/signon/create' "
-                "--data-urlencode 'login={}' "
-                "--data-urlencode 'password={}' "
-                "-s "  # suppress status output
-                "-c cookies > /dev/null"
-                .format(USER, PASSWORD))
+LOGIN_STRING = (
+    # "curl 'https://signon-old.jgi.doe.gov/signon/create' "
+    "curl 'https://signon.jgi.doe.gov/signon/create' "
+    "--data-urlencode 'login={}' "
+    "--data-urlencode 'password={}' "
+    "-s "  # suppress status output
+    "-c cookies > /dev/null"
+    .format(USER, PASSWORD)
+    )
 
 LOCAL_XML = False
 
