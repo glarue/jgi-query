@@ -1,9 +1,10 @@
 # jgi-query
-A command-line tool for querying and downloading from the [Joint Genome Institute (JGI)](http://genome.jgi-psf.org/) online database. Useful for accessing JGI data from command-line-only resources such as remote servers, or as a lightweight alternative to JGI's other [GUI-based download tools](http://genome.jgi-psf.org/help/download.jsf).
+
+A command-line tool for querying and downloading from databases hosted by the [Joint Genome Institute (JGI)](https://jgi.doe.gov/). Useful for accessing JGI data from command-line-only resources such as remote servers, or as a lightweight alternative to JGI's other [GUI-based download tools](https://genome.jgi.doe.gov/portal/help/download.jsf).
 
 ### Dependencies
 
-- A [user account with JGI](http://contacts.jgi-psf.org/registration/new) (free)
+- A [user account with JGI](https://contacts.jgi.doe.gov/registration/new) (free)
 - [cURL](http://curl.haxx.se/), required by the JGI download API
 - [Python](https://www.python.org/downloads/) 3.x (current development) or 2.7.x (deprecated but provided -- now *significantly outdated*)
 

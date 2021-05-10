@@ -59,7 +59,7 @@ def get_user_info():
     file for future use (unless you choose to delete them).
 
     If you need to sign up for a JGI account, use the registration link at
-    https://signon.jgi-psf.org/signon
+    https://contacts.jgi.doe.gov/registration/new
 
     === CREDENTIALS ===
     """
