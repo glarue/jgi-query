@@ -191,7 +191,7 @@ def get_file_list(xml_file, filter_categories=False):
     """
     descriptors = {}
     display_cats = ['filename', 'url', 'size',
-                    'label', 'sizeInBytes', 'timestamp', 'md5'] # myth: add md5
+                    'label', 'sizeInBytes', 'timestamp', 'md5']
     found = xml_hunt(xml_file)
     found = format_found(found, filter_categories)
     if not list(found.values()):
@@ -219,7 +219,7 @@ def get_file_list(xml_file, filter_categories=False):
                     except KeyError:
                         continue
                 uid += 1
-    #print(f"descriptors={descriptors}") ##myth
+
     return descriptors
 
 
@@ -379,7 +379,7 @@ def print_data(data, org_name, display=True):
     """
     print("\nQUERY RESULTS FOR '{}'\n".format(org_name))
     dict_to_get = {}
-    url_to_md5 = {} # myth
+    url_to_md5 = {}
     for query_cat, v in sorted(iter(data.items()),
                                key=lambda k_v: k_v[1]["catID"]):
         print_list = []
