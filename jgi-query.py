@@ -191,7 +191,7 @@ def get_file_list(xml_file, filter_categories=False):
     """
     descriptors = {}
     display_cats = ['filename', 'url', 'size',
-                    'label', 'sizeInBytes', 'timestamp']
+                    'label', 'sizeInBytes', 'timestamp', 'md5'] # myth: add md5
     found = xml_hunt(xml_file)
     found = format_found(found, filter_categories)
     if not list(found.values()):
@@ -219,7 +219,7 @@ def get_file_list(xml_file, filter_categories=False):
                     except KeyError:
                         continue
                 uid += 1
-
+    #print(f"descriptors={descriptors}") ##myth
     return descriptors
 
 
@@ -285,16 +285,17 @@ def clean_exit(exit_message=None, remove_temp=True):
             to_remove.append(xml_index_filename)
         except NameError:
             pass
-    for f in to_remove:
-        try:
-            os.remove(f)
-        except OSError:
-            continue
+    #for f in to_remove:
+    #    try:
+    #        os.remove(f)
+    #    except OSError:
+    #        continue
     if exit_message:
         print_message = "{}\n".format(exit_message)
+        sys.exit("{}Removing temp files and exiting".format(print_message))
     else:
         print_message = ""
-    sys.exit("{}Removing temp files and exiting".format(print_message))
+        sys.exit(0)
 
 
 def extract_file(file_path, keep_compressed=False):
@@ -376,6 +377,7 @@ def print_data(data, org_name, display=True):
     """
     print("\nQUERY RESULTS FOR '{}'\n".format(org_name))
     dict_to_get = {}
+    url_to_md5 = {} # myth
     for query_cat, v in sorted(iter(data.items()),
                                key=lambda k_v: k_v[1]["catID"]):
         print_list = []
@@ -391,6 +393,9 @@ def print_data(data, org_name, display=True):
             print_list.append("{}:".format(sub_cat))
             for index, i in sorted(items.items()):
                 dict_to_get[catID][index] = i["url"]
+                url_to_md5[i["url"]] = i["md5"]
+                #print(f"md5={i['md5']}, url={i['url']}, catID={catID}, index={index}\n")#myth
+                
                 print_index = " {}:[{}] ".format(str(catID), str(index))
                 date = fmt_timestamp(i["timestamp"])
                 date_string = '{:02d}/{}'.format(date.tm_mon, date.tm_year)
@@ -402,7 +407,7 @@ def print_data(data, org_name, display=True):
         if display is True:
             print('\n'.join(print_list))
             print()  # padding
-    return dict_to_get
+    return dict_to_get, url_to_md5
 
 
 def get_user_choice():
@@ -577,8 +582,20 @@ def is_broken(filename, min_size_bytes=20):
     else:
         return False
 
+def check_md5(md5, filename):
+    md5_txt = f"{filename}.md5"
+    open(md5_txt, "w").write(f"{md5} {filename}")
+    cmd = f"md5sum -c {md5_txt} >{md5_txt}.check"
+    print(cmd)
+    status = subprocess.run(cmd, shell=True).returncode
+    if status == 0:
+        print("md5 check ok!")
+        return True
+    else:
+        print("md5 check fail!")
+        return False
 
-def download_from_url(url, timeout=30, retry=0, min_file_bytes=20):
+def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={}):
     """
     Attempts to download a file from JGI servers using cURL.
 
@@ -586,14 +603,19 @@ def download_from_url(url, timeout=30, retry=0, min_file_bytes=20):
     
     """
     success = True
+    md5 = ""
+    if url in url_to_md5:
+        md5 = url_to_md5[url]
+
     url = url.replace('&amp;', '&')
+
     filename = re.search('.+/(.+$)', url).group(1)
     url_prefix = "https://genome.jgi.doe.gov"
     download_command = (
         "curl -m {} '{}{}' -b cookies "
         "> {}".format(timeout, url_prefix, url, filename)
     )
-    if not is_broken(filename, min_file_bytes):
+    if os.path.exists(filename) and md5 and check_md5(md5, filename):
         success = True
         print("Skipping existing file {}".format(filename))
     else:
@@ -601,8 +623,9 @@ def download_from_url(url, timeout=30, retry=0, min_file_bytes=20):
             .format(filename, download_command))
         # The next line doesn't appear to be needed to refresh the cookies.
         #    subprocess.call(login, shell=True)
-        subprocess.run(download_command, shell=True)
-        if is_broken(filename, min_file_bytes):
+        status = subprocess.run(download_command, shell=True).returncode
+        #if is_broken(filename, min_file_bytes):
+        if status != 0 or ( status == 0 and not (md5 and check_md5(md5, filename)) ): # myth:change 
             success = False
             if retry > 0:
                 # success = False
@@ -619,13 +642,16 @@ def download_from_url(url, timeout=30, retry=0, min_file_bytes=20):
                         "Trying '{}' again due to download error ({}/{}):\n{}"
                         .format(filename, current_retry, retry, retry_cmd)
                     )
-                    subprocess.run(retry_cmd, shell=True)
-                    if not is_broken(filename, min_file_bytes):
+                    status = subprocess.run(retry_cmd, shell=True).returncode
+                    #if not is_broken(filename, min_file_bytes):
+                    if status == 0 and md5 and check_md5(md5, filename): # myth:change 
                         success = True
                         break
                     current_retry += 1
-                    time.sleep(1)
-
+                    time.sleep(10)
+        else:
+            print(f"{filename} check md5 done")    
+            
     return filename, download_command, success
 
 
@@ -648,7 +674,7 @@ def get_regex():
     return re.compile(pattern)
 
 
-def retry_from_failed(login_cmd, fail_log, timeout=60, retries=3):
+def retry_from_failed(login_cmd, fail_log, timeout=120, retries=3):
     """
     Try to download from URLs in a previously-generated log file.
     
@@ -683,7 +709,7 @@ def log_failed(organism, failed_urls):
         f.write('\n'.join(failed_urls))
 
 
-def download_list(url_list, timeout=120, retries=3):
+def download_list(url_list, url_to_md5={}, timeout=320000, retries=3): # 120000s=33h, myth， timeout default 120
     """
     Attempts download command on a list of partial file
     URLs (completed by download_from_url()).
@@ -694,6 +720,7 @@ def download_list(url_list, timeout=120, retries=3):
     """
     # Run curl commands to retrieve selected files
     # Make sure the URL formats conforms to the Genome Portal format
+        
     downloaded_files = []
     broken_urls = []
     subprocess.run(LOGIN_STRING, shell=True)
@@ -705,7 +732,7 @@ def download_list(url_list, timeout=120, retries=3):
             subprocess.run(LOGIN_STRING, shell=True)
             start_time = time.time()
         fn, cmd, success = download_from_url(
-            url, timeout=timeout, retry=retries)
+            url, timeout=timeout, retry=retries, url_to_md5=url_to_md5)
         if not success:
             broken_urls.append(url)
         else:
@@ -1038,7 +1065,7 @@ elif DIRECT_REGEX:
     regex_filter = DIRECT_REGEX
     display_info = False
 
-url_dict = print_data(file_list, organism, display=display_info)
+url_dict, url_to_md5 = print_data(file_list, organism, display=display_info)
 
 if not user_choice:
     # Ask user which files to download from xml
@@ -1085,7 +1112,7 @@ if INTERACTIVE:
         clean_exit("ABORTING DOWNLOAD")
 
 downloaded_files, failed_urls = download_list(
-    urls_to_get, retries=args.retry_n)
+    urls_to_get, url_to_md5=url_to_md5, retries=args.retry_n)
 
 print("Finished downloading {} files.".format(len(downloaded_files)))
 
@@ -1095,10 +1122,12 @@ if failed_urls and INTERACTIVE:
         "{} files failed to download; retry them? (y/n): ".format(n_broken))
     if retry_broken.lower() in ('yes', 'y'):
         downloaded_files, failed_urls = download_list(
-            failed_urls, retries=1)
+            failed_urls, url_to_md5=url_to_md5, retries=1)
 
 if failed_urls:
     log_failed(organism, failed_urls)
+    print(f"error: detail error in log file!")
+    sys.exit(1)
 
 # Kindly offer to unpack files, if files remain after error check
 if downloaded_files and INTERACTIVE:
