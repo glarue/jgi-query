@@ -10,13 +10,13 @@ import re
 import subprocess
 import textwrap
 import xml.etree.ElementTree as ET
-from collections import defaultdict
 import argparse
 import tarfile
 import gzip
 import time
 import readline  # allows arrow keys to be used during input
-
+from collections import defaultdict
+from hashlib import md5
 
 # FUNCTIONS
 
@@ -285,18 +285,19 @@ def clean_exit(exit_message=None, remove_temp=True):
             to_remove.append(xml_index_filename)
         except NameError:
             pass
-    #for f in to_remove:
-    #    try:
-    #        os.remove(f)
-    #    except OSError:
-    #        continue
+    for f in to_remove:
+       try:
+           os.remove(f)
+       except OSError:
+           continue
     if exit_message:
         print_message = "{}\n".format(exit_message)
-        sys.exit("{}Removing temp files and exiting".format(print_message))
     else:
         print_message = ""
-        sys.exit(0)
 
+    print("{}Removing temp files and exiting".format(print_message))
+    sys.exit(0)
+    
 
 def extract_file(file_path, keep_compressed=False):
     """
@@ -371,8 +372,9 @@ def fmt_timestamp(time_string):
 def print_data(data, org_name, display=True):
     """
     Prints info from dictionary data in a specific format.
-    Also returns a dict with url information for every file
-    in desired categories.
+    Returns a dict with url information for every file
+    in desired categories, as well as a dict with md5 information for 
+    each file (keyed by file URL).
 
     """
     print("\nQUERY RESULTS FOR '{}'\n".format(org_name))
@@ -393,9 +395,10 @@ def print_data(data, org_name, display=True):
             print_list.append("{}:".format(sub_cat))
             for index, i in sorted(items.items()):
                 dict_to_get[catID][index] = i["url"]
-                url_to_md5[i["url"]] = i["md5"]
-                #print(f"md5={i['md5']}, url={i['url']}, catID={catID}, index={index}\n")#myth
-                
+                try:
+                    url_to_md5[i["url"]] = i["md5"]
+                except:
+                    pass
                 print_index = " {}:[{}] ".format(str(catID), str(index))
                 date = fmt_timestamp(i["timestamp"])
                 date_string = '{:02d}/{}'.format(date.tm_mon, date.tm_year)
@@ -407,6 +410,7 @@ def print_data(data, org_name, display=True):
         if display is True:
             print('\n'.join(print_list))
             print()  # padding
+
     return dict_to_get, url_to_md5
 
 
@@ -568,7 +572,7 @@ def byte_convert(byte_size):
     return size_string
 
 
-def is_broken(filename, min_size_bytes=20):
+def is_broken(filename, min_size_bytes=20, md5_hash=None):
     """
     Rudimentary check to see if a file appears to be broken.
     
@@ -576,24 +580,47 @@ def is_broken(filename, min_size_bytes=20):
     if (
         not os.path.isfile(filename) or
         os.path.getsize(filename) < min_size_bytes or 
-        (is_xml(filename) and not filename.lower().endswith('xml'))
+        (is_xml(filename) and not filename.lower().endswith('xml') or
+        not check_md5(filename, md5_hash))
     ):
         return True
     else:
         return False
 
-def check_md5(md5, filename):
-    md5_txt = f"{filename}.md5"
-    open(md5_txt, "w").write(f"{md5} {filename}")
-    cmd = f"md5sum -c {md5_txt} >{md5_txt}.check"
-    print(cmd)
-    status = subprocess.run(cmd, shell=True).returncode
-    if status == 0:
-        print("md5 check ok!")
-        return True
+
+def get_md5(*fns, buffer_size=65536):
+    hash = md5()
+    for fn in fns:
+        with open(fn, 'rb') as f:
+            while True:
+                data = f.read(buffer_size)
+                if not data:
+                    break
+                hash.update(data)
+
+    return hash.hexdigest()
+
+
+def check_md5(filename, md5_hash, print_message=True):
+    if not md5_hash:
+        message = "INFO: No MD5 hash listed for {}; skipping check".format(filename)
+        ret_val = True
     else:
-        print("md5 check fail!")
-        return False
+        file_md5 = get_md5(filename)
+        if file_md5 == md5_hash:
+            message = (
+                "SUCCESS: MD5 hashes match for {} ({})".format(filename, md5_hash))
+            ret_val = True
+        else:
+            message = ("ERROR: MD5 hash mismatch for {} (local: {}, remote: {})"
+                    .format(filename, file_md5, md5_hash))
+            ret_val = False
+    
+    if print_message is True:
+        print(message)
+    
+    return ret_val
+
 
 def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={}):
     """
@@ -603,9 +630,7 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={
     
     """
     success = True
-    md5 = ""
-    if url in url_to_md5:
-        md5 = url_to_md5[url]
+    md5_hash = url_to_md5.get(url, None)
 
     url = url.replace('&amp;', '&')
 
@@ -615,7 +640,7 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={
         "curl -m {} '{}{}' -b cookies "
         "> {}".format(timeout, url_prefix, url, filename)
     )
-    if os.path.exists(filename) and md5 and check_md5(md5, filename):
+    if not is_broken(filename, md5_hash=md5_hash):
         success = True
         print("Skipping existing file {}".format(filename))
     else:
@@ -624,8 +649,7 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={
         # The next line doesn't appear to be needed to refresh the cookies.
         #    subprocess.call(login, shell=True)
         status = subprocess.run(download_command, shell=True).returncode
-        #if is_broken(filename, min_file_bytes):
-        if status != 0 or ( status == 0 and not (md5 and check_md5(md5, filename)) ): # myth:change 
+        if status != 0 or is_broken(filename, min_file_bytes, md5_hash=md5_hash):
             success = False
             if retry > 0:
                 # success = False
@@ -643,15 +667,14 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={
                         .format(filename, current_retry, retry, retry_cmd)
                     )
                     status = subprocess.run(retry_cmd, shell=True).returncode
-                    #if not is_broken(filename, min_file_bytes):
-                    if status == 0 and md5 and check_md5(md5, filename): # myth:change 
+                    if status == 0 and not is_broken(
+                        filename, min_file_bytes, md5_hash=md5_hash
+                    ):
                         success = True
                         break
                     current_retry += 1
-                    time.sleep(10)
-        else:
-            print(f"{filename} check md5 done")    
-            
+                    time.sleep(10)   
+
     return filename, download_command, success
 
 
@@ -709,7 +732,7 @@ def log_failed(organism, failed_urls):
         f.write('\n'.join(failed_urls))
 
 
-def download_list(url_list, url_to_md5={}, timeout=320000, retries=3): # 120000s=33h, myth， timeout default 120
+def download_list(url_list, url_to_md5={}, timeout=120, retries=3):
     """
     Attempts download command on a list of partial file
     URLs (completed by download_from_url()).
@@ -1126,8 +1149,6 @@ if failed_urls and INTERACTIVE:
 
 if failed_urls:
     log_failed(organism, failed_urls)
-    print(f"error: detail error in log file!")
-    sys.exit(1)
 
 # Kindly offer to unpack files, if files remain after error check
 if downloaded_files and INTERACTIVE:
