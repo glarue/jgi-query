@@ -401,7 +401,7 @@ def print_data(data, org_name, display=True):
                     url_to_validate[url]['md5'] = i["md5"]
                 elif "sizeInBytes" in i:
                     url_to_validate[url]['sizeInBytes'] = int(i["sizeInBytes"])
-                else:
+                elif display is True:
                     print(f"warn: no md5 or sizeInBytes, so the downloaded file maybe not intact for {org_name}.")
                 print_index = " {}:[{}] ".format(str(catID), str(index))
                 date = fmt_timestamp(i["timestamp"])
