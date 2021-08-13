@@ -287,7 +287,7 @@ def clean_exit(exit_message=None, remove_temp=True, failed=True):
             pass
     for f in to_remove:
        try:
-           os.remove(f)
+           if not failed: os.remove(f) # only remove xml or cookies file when download successfully. when download error, user can check the xml
        except OSError:
            continue
     if exit_message:
@@ -380,7 +380,7 @@ def print_data(data, org_name, display=True):
     """
     print("\nQUERY RESULTS FOR '{}'\n".format(org_name))
     dict_to_get = {}
-    url_to_validate = {}
+    url_to_validate = defaultdict(dict)
     for query_cat, v in sorted(iter(data.items()),
                                key=lambda k_v: k_v[1]["catID"]):
         print_list = []
@@ -397,13 +397,12 @@ def print_data(data, org_name, display=True):
             for index, i in sorted(items.items()):
                 url = i["url"]
                 dict_to_get[catID][index] = url
-                if url not in url_to_validate: url_to_validate[url] = {}
                 if "md5" in i:
-                    url_to_validate[url]['md5'] = i["md5"]
+                    url_to_validate[url]["md5"] = i["md5"]
                 elif "sizeInBytes" in i:
-                    url_to_validate[url]['sizeInBytes'] = int(i["sizeInBytes"])
+                    url_to_validate[url]["sizeInBytes"] = int(i["sizeInBytes"])
                 elif display is True:
-                    print(f"warn: no md5 or sizeInBytes, so the downloaded file maybe not intact for {org_name}.")
+                    print(f"warn: no md5 or sizeInBytes, so the downloaded file maybe not intact for filename="+i["filename"]+".")
                 print_index = " {}:[{}] ".format(str(catID), str(index))
                 date = fmt_timestamp(i["timestamp"])
                 date_string = '{:02d}/{}'.format(date.tm_mon, date.tm_year)
