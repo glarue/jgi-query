@@ -407,12 +407,6 @@ def print_data(data, org_name, display=True):
                 # in downstream processing
                 elif "sizeInBytes" in i:
                     url_to_validate[url]["sizeInBytes"] = int(i["sizeInBytes"])
-                # elif display is True:
-                #     print(
-                #         "WARNING: no MD5 or 'sizeInBytes' information found; "
-                #         "download integrity unknown for filename={}."
-                #         .format(i["filename"])
-                #     )
                 print_index = " {}:[{}] ".format(str(catID), str(index))
                 date = fmt_timestamp(i["timestamp"])
                 date_string = "{:02d}/{}".format(date.tm_mon, date.tm_year)
@@ -595,8 +589,8 @@ def is_broken(filename, min_size_bytes=20, md5_hash=None, sizeInBytes=None):
         not os.path.isfile(filename) or
         os.path.getsize(filename) < min_size_bytes or 
         (is_xml(filename) and not filename.lower().endswith("xml")) or
-        ((md5_hash and not check_md5(filename, md5_hash)) or 
-        (sizeInBytes != None and not check_sizeInBytes(filename, sizeInBytes)))
+        ((not check_md5(filename, md5_hash)) or 
+        (not check_sizeInBytes(filename, sizeInBytes)))
     ):
         return True
     else:
@@ -692,7 +686,9 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_valid
         # The next line doesn't appear to be needed to refresh the cookies.
         #    subprocess.call(login, shell=True)
         status = subprocess.run(download_command, shell=True).returncode
-        if status != 0 or is_broken(filename, min_file_bytes, md5_hash=md5_hash, sizeInBytes=sizeInBytes):
+        if status != 0 or is_broken(
+            filename, min_file_bytes, md5_hash=md5_hash, sizeInBytes=sizeInBytes
+        ):
             success = False
             if retry > 0:
                 # success = False
