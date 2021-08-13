@@ -1186,7 +1186,7 @@ if failed_urls and INTERACTIVE:
     n_broken = len(failed_urls)
     retry_broken = input(
         "{} files failed to download; retry them? (y/n): ".format(n_broken))
-    if retry_broken.lower() in ('yes', 'y'):
+    if retry_broken.lower() in ("yes", "y"):
         downloaded_files, failed_urls = download_list(
             failed_urls, url_to_validate=url_to_validate, retries=1)
 
@@ -1203,7 +1203,7 @@ if downloaded_files and INTERACTIVE:
         else:
             keep_original = False
         decompress_files(downloaded_files, keep_original)
-        print('Finished decompressing all files.')
+        print("Finished decompressing all files.")
 
 # Clean up and exit
 # "cookies" file is always created
