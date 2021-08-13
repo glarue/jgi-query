@@ -272,7 +272,7 @@ def get_sizes(d, sizes_by_url=None):
     return sizes_by_url
 
 
-def clean_exit(exit_message=None, remove_temp=True):
+def clean_exit(exit_message=None, remove_temp=True, failed=True):
     """
     Perform a sys.exit() while removing temporary files and
     informing the user.
@@ -296,7 +296,8 @@ def clean_exit(exit_message=None, remove_temp=True):
         print_message = ""
 
     print("{}Removing temp files and exiting".format(print_message))
-    sys.exit(0)
+    exit_code = 1 if failed else 0
+    sys.exit(exit_code)
     
 
 def extract_file(file_path, keep_compressed=False):
@@ -435,7 +436,7 @@ def get_user_choice():
     elif choice.lower() in ("q", "quit", "exit"):
         remove_temp = input("Remove index file? (y/n): ")
         remove_temp = remove_temp.lower() in ('y', 'yes', '')
-        clean_exit(remove_temp=remove_temp)
+        clean_exit(remove_temp=remove_temp, failed=False)
     else:
         return choice
 
@@ -1015,8 +1016,8 @@ LOCAL_XML = False
 if args.load_failed:
     logfile = args.load_failed
     print("Reading URLs from \'{}\'".format(logfile))
-    retry_from_failed(LOGIN_STRING, logfile)
-    clean_exit("All files in log attempted.")
+    downloaded, failed = retry_from_failed(LOGIN_STRING, logfile)
+    clean_exit("All files in log attempted.", failed=failed)
 
 # Get organism name for query
 org_input = args.organism_abbreviation
@@ -1164,7 +1165,7 @@ if INTERACTIVE:
             print('\n'.join(filenames))
             download = input("Continue with download? (y/n/[p]review files): ").lower()
     if download != "y":
-        clean_exit("ABORTING DOWNLOAD")
+        clean_exit("ABORTING DOWNLOAD", failed=False)
 
 downloaded_files, failed_urls = download_list(
     urls_to_get, url_to_validate=url_to_validate, retries=args.retry_n)
@@ -1200,10 +1201,11 @@ if INTERACTIVE:
     keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
                     .format(xml_index_filename))
     if keep_temp.lower() not in "y, yes":
-        clean_exit()
+        clean_exit(failed=failed_urls)
     else:
         print("Leaving temporary files intact and exiting.")
 else:
-    clean_exit()
+    clean_exit(failed=failed_urls)
 
-sys.exit(0)
+exit_code = 1 if failed_urls else 0
+sys.exit(exit_code)
