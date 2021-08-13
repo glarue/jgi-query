@@ -585,7 +585,8 @@ def is_broken(filename, min_size_bytes=20, md5_hash=None, sizeInBytes=None):
         not os.path.isfile(filename) or
         os.path.getsize(filename) < min_size_bytes or 
         (is_xml(filename) and not filename.lower().endswith('xml') or
-        not check_md5(filename, md5_hash) or not check_sizeInBytes(filename, sizeInBytes))
+        (md5_hash and not check_md5(filename, md5_hash)) or 
+        (sizeInBytes != None and not check_sizeInBytes(filename, sizeInBytes)) )
     ):
         return True
     else:
