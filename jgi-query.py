@@ -263,9 +263,12 @@ def get_sizes(d, sizes_by_url=None):
     """
     for k, v in d.items():
         if isinstance(v, dict):
-            if 'url' in v:
-                address = v['url']
-                size = int(v['sizeInBytes'])
+            if "url" in v:
+                address = v["url"]
+                try:
+                    size = int(v["sizeInBytes"])
+                except:
+                    size = None
                 sizes_by_url[address] = size
             else:
                 get_sizes(v, sizes_by_url)
@@ -307,8 +310,8 @@ def extract_file(file_path, keep_compressed=False):
     TODO: implement .zip decompression
 
     """
-    tar_pattern = 'tar.gz$'  # matches tar.gz
-    gz_pattern = '(?<!tar)\.gz$'  # excludes tar.gz
+    tar_pattern = "tar.gz$"  # matches tar.gz
+    gz_pattern = "(?<!tar)\.gz$"  # excludes tar.gz
     endings_map = {"tar": (tarfile, "r:gz", ".tar.gz"),
                    "gz": (gzip, "rb", ".gz")
                    }
@@ -395,18 +398,21 @@ def print_data(data, org_name, display=True):
                                      (sub_cat_items[0], sub_cat_items[1])):
             print_list.append("{}:".format(sub_cat))
             for index, i in sorted(items.items()):
+                integrity_tag = ""
                 url = i["url"]
                 dict_to_get[catID][index] = url
                 if "md5" in i:
                     url_to_validate[url]["md5"] = i["md5"]
+                # the following elif takes care of MD5 > sizeInBytes rank-order
+                # in downstream processing
                 elif "sizeInBytes" in i:
                     url_to_validate[url]["sizeInBytes"] = int(i["sizeInBytes"])
-                elif display is True:
-                    print(
-                        "WARNING: no MD5 or 'sizeInBytes' information found; "
-                        "download integrity unknown for filename={}."
-                        .format(i["filename"])
-                    )
+                # elif display is True:
+                #     print(
+                #         "WARNING: no MD5 or 'sizeInBytes' information found; "
+                #         "download integrity unknown for filename={}."
+                #         .format(i["filename"])
+                #     )
                 print_index = " {}:[{}] ".format(str(catID), str(index))
                 date = fmt_timestamp(i["timestamp"])
                 date_string = "{:02d}/{}".format(date.tm_mon, date.tm_year)
@@ -588,9 +594,9 @@ def is_broken(filename, min_size_bytes=20, md5_hash=None, sizeInBytes=None):
     if (
         not os.path.isfile(filename) or
         os.path.getsize(filename) < min_size_bytes or 
-        (is_xml(filename) and not filename.lower().endswith("xml") or
-        (md5_hash and not check_md5(filename, md5_hash)) or 
-        (sizeInBytes != None and not check_sizeInBytes(filename, sizeInBytes)) )
+        (is_xml(filename) and not filename.lower().endswith("xml")) or
+        ((md5_hash and not check_md5(filename, md5_hash)) or 
+        (sizeInBytes != None and not check_sizeInBytes(filename, sizeInBytes)))
     ):
         return True
     else:
@@ -1158,7 +1164,7 @@ else:
 urls_to_get = sorted(urls_to_get)
 filenames = [u.split("/")[-1] for u in urls_to_get]
 file_sizes = get_sizes(file_list, sizes_by_url={})
-total_size = sum([file_sizes[url] for url in urls_to_get])
+total_size = sum(filter(None, [file_sizes[url] for url in urls_to_get]))
 size_string = byte_convert(total_size)
 num_files = len(urls_to_get)
 print(("Total download size for {} files: {}".format(num_files, size_string)))
