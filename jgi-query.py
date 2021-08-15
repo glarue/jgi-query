@@ -275,7 +275,7 @@ def get_sizes(d, sizes_by_url=None):
     return sizes_by_url
 
 
-def clean_exit(exit_message=None, remove_temp=True, failed=True):
+def clean_exit(exit_message=None, exit_code=0, remove_temp=True):
     """
     Perform a sys.exit() while removing temporary files and
     informing the user.
@@ -289,17 +289,18 @@ def clean_exit(exit_message=None, remove_temp=True, failed=True):
         except NameError:
             pass
     for f in to_remove:
-       try:
-           if not failed: os.remove(f) # only remove xml or cookies file when download successfully. when download error, user can check the xml
-       except OSError:
-           continue
-    if exit_message:
-        print_message = "{}\n".format(exit_message)
+        try:
+            os.remove(f) 
+        except OSError:
+            continue
+    if remove_temp is True:
+        base_message = "Removing temp files and exiting"
     else:
-        print_message = ""
+        base_message = "Keeping temp files and exiting"
+    if exit_message:
+        print(exit_message)
+    print(base_message)
 
-    print("{}Removing temp files and exiting".format(print_message))
-    exit_code = 1 if failed else 0
     sys.exit(exit_code)
     
 
@@ -439,7 +440,7 @@ def get_user_choice():
     elif choice.lower() in ("q", "quit", "exit"):
         remove_temp = input("Remove index file? (y/n): ")
         remove_temp = remove_temp.lower() in ('y', 'yes', '')
-        clean_exit(remove_temp=remove_temp, failed=False)
+        clean_exit(remove_temp=remove_temp)
     else:
         return choice
 
@@ -1023,7 +1024,7 @@ if args.load_failed:
     logfile = args.load_failed
     print("Reading URLs from \'{}\'".format(logfile))
     downloaded, failed = retry_from_failed(LOGIN_STRING, logfile)
-    clean_exit("All files in log attempted.", failed=failed)
+    clean_exit("All files in log attempted.")
 
 # Get organism name for query
 org_input = args.organism_abbreviation
@@ -1171,7 +1172,7 @@ if INTERACTIVE:
             print('\n'.join(filenames))
             download = input("Continue with download? (y/n/[p]review files): ").lower()
     if download != "y":
-        clean_exit("ABORTING DOWNLOAD", failed=False)
+        clean_exit("ABORTING DOWNLOAD")
 
 downloaded_files, failed_urls = download_list(
     urls_to_get, url_to_validate=url_to_validate, retries=args.retry_n)
@@ -1186,9 +1187,6 @@ if failed_urls and INTERACTIVE:
         downloaded_files, failed_urls = download_list(
             failed_urls, url_to_validate=url_to_validate, retries=1)
 
-if failed_urls:
-    log_failed(organism, failed_urls)
-
 # Kindly offer to unpack files, if files remain after error check
 if downloaded_files and INTERACTIVE:
     decompress = input(("Decompress all downloaded files? "
@@ -1201,17 +1199,26 @@ if downloaded_files and INTERACTIVE:
         decompress_files(downloaded_files, keep_original)
         print("Finished decompressing all files.")
 
+#TODO either offer to delete or append ".error" to local broken files
+if failed_urls:
+    log_failed(organism, failed_urls)
+    SOME_FAILED = True
+else:
+    SOME_FAILED = False
+
 # Clean up and exit
 # "cookies" file is always created
+remove_temp = True
 if INTERACTIVE:
     keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
                     .format(xml_index_filename))
-    if keep_temp.lower() not in "y, yes":
-        clean_exit(failed=failed_urls)
-    else:
-        print("Leaving temporary files intact and exiting.")
-else:
-    clean_exit(failed=failed_urls)
+    if keep_temp.lower() in "y, yes":
+        remove_temp = False
+elif SOME_FAILED:  # failed files in non-interactive mode
+    exit_message = (
+        'Some files failed downloading; keeping temp files for reference')
+    remove_temp = False
 
-exit_code = 1 if failed_urls else 0
-sys.exit(exit_code)
+exit_code = 1 if SOME_FAILED else 0
+
+clean_exit(exit_code, remove_temp=remove_temp)
