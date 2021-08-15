@@ -263,16 +263,19 @@ def get_sizes(d, sizes_by_url=None):
     """
     for k, v in d.items():
         if isinstance(v, dict):
-            if 'url' in v:
-                address = v['url']
-                size = int(v['sizeInBytes'])
+            if "url" in v:
+                address = v["url"]
+                try:
+                    size = int(v["sizeInBytes"])
+                except:
+                    size = None
                 sizes_by_url[address] = size
             else:
                 get_sizes(v, sizes_by_url)
     return sizes_by_url
 
 
-def clean_exit(exit_message=None, remove_temp=True):
+def clean_exit(exit_message=None, exit_code=0, remove_temp=True):
     """
     Perform a sys.exit() while removing temporary files and
     informing the user.
@@ -286,17 +289,19 @@ def clean_exit(exit_message=None, remove_temp=True):
         except NameError:
             pass
     for f in to_remove:
-       try:
-           os.remove(f)
-       except OSError:
-           continue
-    if exit_message:
-        print_message = "{}\n".format(exit_message)
+        try:
+            os.remove(f) 
+        except OSError:
+            continue
+    if remove_temp is True:
+        base_message = "Removing temp files and exiting"
     else:
-        print_message = ""
+        base_message = "Keeping temp files and exiting"
+    if exit_message:
+        print(exit_message)
+    print(base_message)
 
-    print("{}Removing temp files and exiting".format(print_message))
-    sys.exit(0)
+    sys.exit(exit_code)
     
 
 def extract_file(file_path, keep_compressed=False):
@@ -306,8 +311,8 @@ def extract_file(file_path, keep_compressed=False):
     TODO: implement .zip decompression
 
     """
-    tar_pattern = 'tar.gz$'  # matches tar.gz
-    gz_pattern = '(?<!tar)\.gz$'  # excludes tar.gz
+    tar_pattern = "tar.gz$"  # matches tar.gz
+    gz_pattern = "(?<!tar)\.gz$"  # excludes tar.gz
     endings_map = {"tar": (tarfile, "r:gz", ".tar.gz"),
                    "gz": (gzip, "rb", ".gz")
                    }
@@ -379,7 +384,7 @@ def print_data(data, org_name, display=True):
     """
     print("\nQUERY RESULTS FOR '{}'\n".format(org_name))
     dict_to_get = {}
-    url_to_md5 = {}
+    url_to_validate = defaultdict(dict)
     for query_cat, v in sorted(iter(data.items()),
                                key=lambda k_v: k_v[1]["catID"]):
         print_list = []
@@ -394,14 +399,18 @@ def print_data(data, org_name, display=True):
                                      (sub_cat_items[0], sub_cat_items[1])):
             print_list.append("{}:".format(sub_cat))
             for index, i in sorted(items.items()):
-                dict_to_get[catID][index] = i["url"]
-                try:
-                    url_to_md5[i["url"]] = i["md5"]
-                except:
-                    pass
+                integrity_tag = ""
+                url = i["url"]
+                dict_to_get[catID][index] = url
+                if "md5" in i:
+                    url_to_validate[url]["md5"] = i["md5"]
+                # the following elif takes care of MD5 > sizeInBytes rank-order
+                # in downstream processing
+                elif "sizeInBytes" in i:
+                    url_to_validate[url]["sizeInBytes"] = int(i["sizeInBytes"])
                 print_index = " {}:[{}] ".format(str(catID), str(index))
                 date = fmt_timestamp(i["timestamp"])
-                date_string = '{:02d}/{}'.format(date.tm_mon, date.tm_year)
+                date_string = "{:02d}/{}".format(date.tm_mon, date.tm_year)
                 size_date = "[{}|{}]".format(i["size"], date_string)
                 filename = i["filename"]
                 margin = 80 - (len(size_date) + len(print_index))
@@ -411,7 +420,7 @@ def print_data(data, org_name, display=True):
             print('\n'.join(print_list))
             print()  # padding
 
-    return dict_to_get, url_to_md5
+    return dict_to_get, url_to_validate
 
 
 def get_user_choice():
@@ -572,7 +581,7 @@ def byte_convert(byte_size):
     return size_string
 
 
-def is_broken(filename, min_size_bytes=20, md5_hash=None):
+def is_broken(filename, min_size_bytes=20, md5_hash=None, sizeInBytes=None):
     """
     Rudimentary check to see if a file appears to be broken.
     
@@ -580,8 +589,9 @@ def is_broken(filename, min_size_bytes=20, md5_hash=None):
     if (
         not os.path.isfile(filename) or
         os.path.getsize(filename) < min_size_bytes or 
-        (is_xml(filename) and not filename.lower().endswith('xml') or
-        not check_md5(filename, md5_hash))
+        (is_xml(filename) and not filename.lower().endswith("xml")) or
+        ((not check_md5(filename, md5_hash)) or 
+        (not check_sizeInBytes(filename, sizeInBytes)))
     ):
         return True
     else:
@@ -591,7 +601,7 @@ def is_broken(filename, min_size_bytes=20, md5_hash=None):
 def get_md5(*fns, buffer_size=65536):
     hash = md5()
     for fn in fns:
-        with open(fn, 'rb') as f:
+        with open(fn, "rb") as f:
             while True:
                 data = f.read(buffer_size)
                 if not data:
@@ -600,6 +610,13 @@ def get_md5(*fns, buffer_size=65536):
 
     return hash.hexdigest()
 
+def get_sizeInBytes(filename):
+    try:
+        file_sizeInBytes = os.path.getsize(filename)
+    except:
+        file_sizeInBytes = 0
+
+    return file_sizeInBytes
 
 def check_md5(filename, md5_hash, print_message=True):
     if not md5_hash:
@@ -621,8 +638,28 @@ def check_md5(filename, md5_hash, print_message=True):
     
     return ret_val
 
+def check_sizeInBytes(filename, sizeInBytes, print_message=True):
+    if not sizeInBytes:
+        message = "INFO: No sizeInBytes listed for {}; skipping check".format(filename)
+        ret_val = True
+    else:
+        file_sizeInBytes = get_sizeInBytes(filename)
+        if file_sizeInBytes == sizeInBytes:
+            message = (
+                "SUCCESS: sizeInBytes match for {} ({})".format(filename, sizeInBytes))
+            ret_val = True
+        else:
+            message = ("ERROR: sizeInBytes mismatch for {} (local: {}, remote: {})"
+                    .format(filename, file_sizeInBytes, sizeInBytes))
+            ret_val = False
+    
+    if print_message is True:
+        print(message)
+    
+    return ret_val
+    
 
-def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={}):
+def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_validate={}):
     """
     Attempts to download a file from JGI servers using cURL.
 
@@ -630,9 +667,10 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={
     
     """
     success = True
-    md5_hash = url_to_md5.get(url, None)
+    md5_hash = url_to_validate[url].get("md5", None)
+    sizeInBytes = url_to_validate[url].get("sizeInBytes", None)
 
-    url = url.replace('&amp;', '&')
+    url = url.replace("&amp;", "&")
 
     filename = re.search('.+/(.+$)', url).group(1)
     url_prefix = "https://genome.jgi.doe.gov"
@@ -640,7 +678,7 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={
         "curl -m {} '{}{}' -b cookies "
         "> {}".format(timeout, url_prefix, url, filename)
     )
-    if not is_broken(filename, md5_hash=md5_hash):
+    if not is_broken(filename, md5_hash=md5_hash, sizeInBytes=sizeInBytes):
         success = True
         print("Skipping existing file {}".format(filename))
     else:
@@ -649,13 +687,15 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={
         # The next line doesn't appear to be needed to refresh the cookies.
         #    subprocess.call(login, shell=True)
         status = subprocess.run(download_command, shell=True).returncode
-        if status != 0 or is_broken(filename, min_file_bytes, md5_hash=md5_hash):
+        if status != 0 or is_broken(
+            filename, min_file_bytes, md5_hash=md5_hash, sizeInBytes=sizeInBytes
+        ):
             success = False
             if retry > 0:
                 # success = False
                 # this may be needed if initial download fails
                 alt_cmd = download_command.replace(
-                    'blocking=true', 'blocking=false')
+                    "blocking=true", "blocking=false")
                 current_retry = 1
                 while current_retry <= retry:
                     if current_retry % 2 == 1:
@@ -668,7 +708,7 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_md5={
                     )
                     status = subprocess.run(retry_cmd, shell=True).returncode
                     if status == 0 and not is_broken(
-                        filename, min_file_bytes, md5_hash=md5_hash
+                        filename, min_file_bytes, md5_hash=md5_hash, sizeInBytes=sizeInBytes
                     ):
                         success = True
                         break
@@ -687,12 +727,12 @@ def get_regex():
     # manage to get a working regex
     compile_success = False
     while compile_success is False:
-        pattern = input('Regex pattern: ')
+        pattern = input("Regex pattern: ")
         try:
             pattern = re.compile(pattern)
             compile_success = True
         except:
-            print('[!] ERROR: Regex pattern failed to compile.')
+            print("[!] ERROR: Regex pattern failed to compile.")
 
     return re.compile(pattern)
 
@@ -712,7 +752,7 @@ def retry_from_failed(login_cmd, fail_log, timeout=120, retries=3):
                   "connection and retry.")
     downloaded, failed = download_list(url_list)
 
-    print('Finished downloading {} files'.format(len(downloaded)))
+    print("Finished downloading {} files".format(len(downloaded)))
     if failed:
         log_failed(organism, failed)
     
@@ -724,15 +764,15 @@ def log_failed(organism, failed_urls):
     Write failed URLs to a local log file.
     
     """
-    fail_log = '{}.failed.log'.format(organism)
+    fail_log = "{}.failed.log".format(organism)
     print(
-        '{} failed downloads logged to {}'.format(len(failed_urls), fail_log))
+        "{} failed downloads logged to {}".format(len(failed_urls), fail_log))
     # write failed URLs to local file
     with open(fail_log, 'w') as f:
         f.write('\n'.join(failed_urls))
 
 
-def download_list(url_list, url_to_md5={}, timeout=120, retries=3):
+def download_list(url_list, url_to_validate={}, timeout=120, retries=3):
     """
     Attempts download command on a list of partial file
     URLs (completed by download_from_url()).
@@ -755,7 +795,7 @@ def download_list(url_list, url_to_md5={}, timeout=120, retries=3):
             subprocess.run(LOGIN_STRING, shell=True)
             start_time = time.time()
         fn, cmd, success = download_from_url(
-            url, timeout=timeout, retry=retries, url_to_md5=url_to_md5)
+            url, timeout=timeout, retry=retries, url_to_validate=url_to_validate)
         if not success:
             broken_urls.append(url)
         else:
@@ -889,19 +929,19 @@ parser.add_argument("-n", "--retry_n", type=int, default=4,
                     help=("number of times to retry downloading files with "
                     "errors (0 to skip such files)"))
 parser.add_argument(
-    "-l", "--load_failed", type=str, metavar='logfile',
+    "-l", "--load_failed", type=str, metavar="logfile",
     help="retry downloading from URLs listed in log file")
 parser.add_argument(
     "-r", 
     "--regex",
     type=re.compile,  # convert to regex object
-    help='Regex pattern to use to auto-select and download '
-    'files (no interactive prompt)')
+    help="Regex pattern to use to auto-select and download "
+    "files (no interactive prompt)")
 parser.add_argument(
     "-a",
     "--all",
     action="store_true",
-    help='Auto-select and download all files for query (no interactive prompt)'
+    help="Auto-select and download all files for query (no interactive prompt)"
 )
 
 # /ARG PARSER
@@ -936,15 +976,15 @@ CONFIG_FILENAME = "jgi-query.config"
 CONFIG_FILEPATH = SCRIPT_HOME + "/{}".format(CONFIG_FILENAME)
 
 # Categories to store in default config file
-DEFAULT_CATEGORIES = ['ESTs',
-                      'EST Clusters',
-                      'Assembled scaffolds (unmasked)',
-                      'Assembled scaffolds (masked)',
-                      'Transcripts',
-                      'Genes',
-                      'CDS',
-                      'Proteins',
-                      'Additional Files']
+DEFAULT_CATEGORIES = ["ESTs",
+                      "EST Clusters",
+                      "Assembled scaffolds (unmasked)",
+                      "Assembled scaffolds (masked)",
+                      "Transcripts",
+                      "Genes",
+                      "CDS",
+                      "Proteins",
+                      "Additional Files"]
 
 # Does config file exist?
 if os.path.isfile(CONFIG_FILEPATH) and not args.configure:  # use config file
@@ -983,7 +1023,7 @@ LOCAL_XML = False
 if args.load_failed:
     logfile = args.load_failed
     print("Reading URLs from \'{}\'".format(logfile))
-    retry_from_failed(LOGIN_STRING, logfile)
+    downloaded, failed = retry_from_failed(LOGIN_STRING, logfile)
     clean_exit("All files in log attempted.")
 
 # Get organism name for query
@@ -1020,8 +1060,8 @@ if args.xml:
     else:
         xml_index_filename = xml_arg
     print(
-        'Retrieving information from JGI for query '
-        '\'{}\' using local file \'{}\'\n'.format(organism, xml_index_filename))
+        "Retrieving information from JGI for query "
+        "'{}' using local file '{}'\n".format(organism, xml_index_filename))
 else:  # fetch XML file from JGI
     xml_index_filename = "{}_jgi_index.xml".format(organism)
 
@@ -1038,8 +1078,8 @@ else:  # fetch XML file from JGI
         clean_exit("Couldn't connect with server. Please check Internet "
                   "connection and retry.")
     print(
-        'Retrieving information from JGI for query \'{}\' using command '
-        '\'{}\'\n'.format(organism, xml_address))
+        "Retrieving information from JGI for query '{}' using command "
+        "'{}'\n".format(organism, xml_address))
     subprocess.run(xml_address, shell=True)
     print()  # padding
 
@@ -1081,14 +1121,14 @@ regex_filter = None
 user_choice = None
 display_info = True
 if GET_ALL:
-    user_choice = 'a'
+    user_choice = "a"
     display_info = False
 elif DIRECT_REGEX:
-    user_choice = 'r'
+    user_choice = "r"
     regex_filter = DIRECT_REGEX
     display_info = False
 
-url_dict, url_to_md5 = print_data(file_list, organism, display=display_info)
+url_dict, url_to_validate = print_data(file_list, organism, display=display_info)
 
 if not user_choice:
     # Ask user which files to download from xml
@@ -1100,11 +1140,11 @@ urls_to_get = set()
 
 # special case for downloading all available files
 # or filtering with a regular expression
-if user_choice in ('a', 'r'):
+if user_choice in ("a", "r"):
     for k, v in sorted(url_dict.items()):
         for u in v.values():
             if regex_filter:
-                fn = re.search('.+/([^\/]+$)', u).group(1)
+                fn = re.search(".+/([^\/]+$)", u).group(1)
                 match = regex_filter.search(fn)
                 if not match:
                     continue
@@ -1119,9 +1159,9 @@ else:
 
 # Calculate and display total size of selected data
 urls_to_get = sorted(urls_to_get)
-filenames = [u.split('/')[-1] for u in urls_to_get]
+filenames = [u.split("/")[-1] for u in urls_to_get]
 file_sizes = get_sizes(file_list, sizes_by_url={})
-total_size = sum([file_sizes[url] for url in urls_to_get])
+total_size = sum(filter(None, [file_sizes[url] for url in urls_to_get]))
 size_string = byte_convert(total_size)
 num_files = len(urls_to_get)
 print(("Total download size for {} files: {}".format(num_files, size_string)))
@@ -1135,7 +1175,7 @@ if INTERACTIVE:
         clean_exit("ABORTING DOWNLOAD")
 
 downloaded_files, failed_urls = download_list(
-    urls_to_get, url_to_md5=url_to_md5, retries=args.retry_n)
+    urls_to_get, url_to_validate=url_to_validate, retries=args.retry_n)
 
 print("Finished downloading {} files.".format(len(downloaded_files)))
 
@@ -1143,12 +1183,9 @@ if failed_urls and INTERACTIVE:
     n_broken = len(failed_urls)
     retry_broken = input(
         "{} files failed to download; retry them? (y/n): ".format(n_broken))
-    if retry_broken.lower() in ('yes', 'y'):
+    if retry_broken.lower() in ("yes", "y"):
         downloaded_files, failed_urls = download_list(
-            failed_urls, url_to_md5=url_to_md5, retries=1)
-
-if failed_urls:
-    log_failed(organism, failed_urls)
+            failed_urls, url_to_validate=url_to_validate, retries=1)
 
 # Kindly offer to unpack files, if files remain after error check
 if downloaded_files and INTERACTIVE:
@@ -1160,18 +1197,29 @@ if downloaded_files and INTERACTIVE:
         else:
             keep_original = False
         decompress_files(downloaded_files, keep_original)
-        print('Finished decompressing all files.')
+        print("Finished decompressing all files.")
+
+#TODO either offer to delete or append ".error" to local broken files
+if failed_urls:
+    log_failed(organism, failed_urls)
+    SOME_FAILED = True
+else:
+    SOME_FAILED = False
 
 # Clean up and exit
 # "cookies" file is always created
+exit_message = None
+remove_temp = True
 if INTERACTIVE:
     keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
                     .format(xml_index_filename))
-    if keep_temp.lower() not in "y, yes":
-        clean_exit()
-    else:
-        print("Leaving temporary files intact and exiting.")
-else:
-    clean_exit()
+    if keep_temp.lower() in "y, yes":
+        remove_temp = False
+elif SOME_FAILED:  # failed files in non-interactive mode
+    exit_message = (
+        'Some files failed downloading')
+    remove_temp = False
 
-sys.exit(0)
+exit_code = 1 if SOME_FAILED else 0
+
+clean_exit(exit_message=exit_message, exit_code=exit_code, remove_temp=remove_temp)
