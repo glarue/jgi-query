@@ -1208,6 +1208,7 @@ else:
 
 # Clean up and exit
 # "cookies" file is always created
+exit_message = None
 remove_temp = True
 if INTERACTIVE:
     keep_temp = input("Keep temporary files ('{}' and 'cookies')? (y/n): "
@@ -1216,9 +1217,9 @@ if INTERACTIVE:
         remove_temp = False
 elif SOME_FAILED:  # failed files in non-interactive mode
     exit_message = (
-        'Some files failed downloading; keeping temp files for reference')
+        'Some files failed downloading')
     remove_temp = False
 
 exit_code = 1 if SOME_FAILED else 0
 
-clean_exit(exit_code, remove_temp=remove_temp)
+clean_exit(exit_message=exit_message, exit_code=exit_code, remove_temp=remove_temp)
