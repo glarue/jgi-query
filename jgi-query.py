@@ -713,7 +713,7 @@ def download_from_url(url, timeout=120, retry=0, min_file_bytes=20, url_to_valid
                         success = True
                         break
                     current_retry += 1
-                    time.sleep(10)   
+                    time.sleep(10)
 
     return filename, download_command, success
 
@@ -786,6 +786,7 @@ def download_list(url_list, url_to_validate={}, timeout=120, retries=3):
         
     downloaded_files = []
     broken_urls = []
+    broken_files = []
     subprocess.run(LOGIN_STRING, shell=True)
     start_time = time.time()
     for url in url_list:
@@ -798,9 +799,20 @@ def download_list(url_list, url_to_validate={}, timeout=120, retries=3):
             url, timeout=timeout, retry=retries, url_to_validate=url_to_validate)
         if not success:
             broken_urls.append(url)
+            broken_files.append(fn)
         else:
             downloaded_files.append(fn)
-    
+    # in cases where multiple files with same name are present and any of them 
+    # succeed, we can remove corresponding URLs from the list of broken URLs
+    # (otherwise, they would just overwrite one another). 
+    # TODO we could also rename any files with identical names, although then 
+    # we would need to differentiate between files with different content and 
+    # files that are just broken versions of the same file...
+    broken_urls = [
+        u for u, f in zip(broken_urls, broken_files) 
+        if f not in downloaded_files
+    ]
+
     return downloaded_files, broken_urls
 
 # /FUNCTIONS
