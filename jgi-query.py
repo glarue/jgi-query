@@ -1140,10 +1140,10 @@ regex_filter = None
 user_choice = None
 display_info = True
 if GET_ALL:
-    user_choice = 'a'
+    user_choice = "a"
     display_info = False
 elif DIRECT_REGEX:
-    user_choice = 'r'
+    user_choice = "r"
     regex_filter = DIRECT_REGEX
     display_info = False
 elif RETRY_FROM_LOG is not None:
