@@ -1032,14 +1032,21 @@ LOGIN_STRING = (
 
 LOCAL_XML = False
 
+RETRY_FROM_LOG = None
+
+# pull info from log file if provided
 if args.load_failed:
     logfile = args.load_failed
-    print("Reading URLs from \'{}\'".format(logfile))
-    downloaded, failed = retry_from_failed(LOGIN_STRING, logfile)
-    clean_exit("All files in log attempted.")
+    org_input = os.path.basename(logfile).split('.')[0]
+    with open(logfile) as f:
+        RETRY_FROM_LOG = f.read().splitlines()
+    # logfile = args.load_failed
+    # print("Reading URLs from \'{}\'".format(logfile))
+    # downloaded, failed = retry_from_failed(LOGIN_STRING, logfile)
+    # clean_exit("All files in log attempted.")
+else:
+    org_input = args.organism_abbreviation
 
-# Get organism name for query
-org_input = args.organism_abbreviation
 if not org_input:
     if args.configure:
         sys.exit("Configuration complete. Script may now be used to query JGI. "
@@ -1133,12 +1140,16 @@ regex_filter = None
 user_choice = None
 display_info = True
 if GET_ALL:
-    user_choice = "a"
+    user_choice = 'a'
     display_info = False
 elif DIRECT_REGEX:
-    user_choice = "r"
+    user_choice = 'r'
     regex_filter = DIRECT_REGEX
     display_info = False
+elif RETRY_FROM_LOG is not None:
+    user_choice = 'l'
+    display_info = False
+
 
 url_dict, url_to_validate = print_data(file_list, organism, display=display_info)
 
@@ -1152,14 +1163,16 @@ urls_to_get = set()
 
 # special case for downloading all available files
 # or filtering with a regular expression
-if user_choice in ("a", "r"):
+if user_choice in ('a', 'r', 'l'):
     for k, v in sorted(url_dict.items()):
         for u in v.values():
             if regex_filter:
-                fn = re.search(".+/([^\/]+$)", u).group(1)
+                fn = re.search(r'.+/([^\/]+$)', u).group(1)
                 match = regex_filter.search(fn)
                 if not match:
                     continue
+            elif user_choice == 'l' and u not in RETRY_FROM_LOG:
+                continue
             urls_to_get.add(u)
 else:
     # Retrieve user-selected file urls from dict
