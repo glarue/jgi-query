@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 """
 Retrieves files/directories from JGI through the curl api.
 
@@ -966,7 +967,8 @@ if len(sys.argv) == 1:
 args = parser.parse_args()
 DIRECT_REGEX = args.regex
 GET_ALL = args.all
-if GET_ALL or DIRECT_REGEX:
+RETRY_FROM_LOG = args.load_failed
+if GET_ALL or DIRECT_REGEX or RETRY_FROM_LOG:
     INTERACTIVE = False
 else:
     INTERACTIVE = True
@@ -1031,8 +1033,6 @@ LOGIN_STRING = (
     )
 
 LOCAL_XML = False
-
-RETRY_FROM_LOG = None
 
 # pull info from log file if provided
 if args.load_failed:
@@ -1147,7 +1147,7 @@ elif DIRECT_REGEX:
     regex_filter = DIRECT_REGEX
     display_info = False
 elif RETRY_FROM_LOG is not None:
-    user_choice = 'l'
+    user_choice = "l"
     display_info = False
 
 
@@ -1163,15 +1163,15 @@ urls_to_get = set()
 
 # special case for downloading all available files
 # or filtering with a regular expression
-if user_choice in ('a', 'r', 'l'):
+if user_choice in ("a", "r", "l"):
     for k, v in sorted(url_dict.items()):
         for u in v.values():
             if regex_filter:
-                fn = re.search(r'.+/([^\/]+$)', u).group(1)
+                fn = re.search(r".+/([^\/]+$)", u).group(1)
                 match = regex_filter.search(fn)
                 if not match:
                     continue
-            elif user_choice == 'l' and u not in RETRY_FROM_LOG:
+            elif user_choice == "l" and u not in RETRY_FROM_LOG:
                 continue
             urls_to_get.add(u)
 else:
